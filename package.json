@@ -1,0 +1,22 @@
+{
+  "name": "shift-to-gc",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sélecteur mobile de shifts synchronisé avec Google Calendar",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @shift-to-gc/api && npm run build -w @shift-to-gc/web",
+    "dev": "concurrently -n api,web -c blue,magenta \"npm run dev -w @shift-to-gc/api\" \"npm run dev -w @shift-to-gc/web\"",
+    "start": "npm run start -w @shift-to-gc/api",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

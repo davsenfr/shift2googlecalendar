@@ -1,0 +1,10 @@
+{
+  "name": "Mes horaires",
+  "short_name": "Horaires",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f1e8",
+  "theme_color": "#101813",
+  "lang": "fr",
+  "icons": []
+}
