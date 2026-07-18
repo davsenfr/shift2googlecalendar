@@ -27,7 +27,14 @@ export type DayState = {
   syncedAt: string;
 };
 
-async function request<T>(url: string, options?: RequestInit): Promise<T> {
+const API_BASE =
+    import.meta.env.PROD
+        ? import.meta.env.VITE_API_BASE_URL || ''
+        : (import.meta.env.VITE_API_BASE_URL || '/api');
+
+
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const url = `${API_BASE}${path}`;
   const response = await fetch(url, {
     ...options,
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -41,11 +48,11 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  authStatus: () => request<AuthStatus>('/api/auth/status'),
+  authStatus: () => request<AuthStatus>('/auth/status'),
   day: (date: string, signal?: AbortSignal) =>
-    request<DayState>(`/api/calendar/days/${date}`, { signal }),
+    request<DayState>(`/calendar/days/${date}`, { signal }),
   select: (date: string, shift: ShiftType) =>
-    request<DayState>(`/api/calendar/days/${date}/shift`, {
+    request<DayState>(`/calendar/days/${date}/shift`, {
       method: 'PUT',
       body: JSON.stringify({ shift }),
     }),
