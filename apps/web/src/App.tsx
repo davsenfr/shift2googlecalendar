@@ -13,6 +13,8 @@ const SHIFT_COPY: Record<ShiftType, { name: string; time: string; note: string }
 
 type DragStart = { x: number; y: number; pointerId: number } | null;
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
+
 export default function App() {
   const [auth, setAuth] = useState<AuthStatus | null>(null);
   const [date, setDate] = useState(today);
@@ -123,7 +125,7 @@ export default function App() {
         <p className="welcome-copy">
           Connectez l’agenda Google dans lequel vous souhaitez enregistrer vos horaires.
         </p>
-        <a className="connect-button" href="/api/auth/google">Connecter Google Calendar</a>
+        <a className="connect-button" href={`${API_BASE}/auth/google`}>Connecter Google Calendar</a>
         <p className="privacy-note">L’accès à Google reste côté serveur.</p>
       </main>
     );
