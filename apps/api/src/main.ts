@@ -17,7 +17,9 @@ async function bootstrap() {
     new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }),
   );
 
-  await app.listen(config.get<number>('API_PORT', 3000));
+  const port = (process.env.PORT && parseInt(process.env.PORT, 10)) ||
+      config.get<number>('API_PORT', 3000);
+  await app.listen(port, '0.0.0.0');
 }
 
 void bootstrap();
