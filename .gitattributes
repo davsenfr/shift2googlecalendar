@@ -1,0 +1,68 @@
+* text=auto eol=lf
+
+# Shell Scripts
+*.sh text eol=lf
+
+# Scripts Node / JS / TS
+*.js text eol=lf
+*.jsx text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+
+# Configs : LF
+*.json text eol=lf
+*.jsonc text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.env text eol=lf
+*.toml text eol=lf
+*.ini text eol=lf
+*.conf text eol=lf
+*.properties text eol=lf
+
+# HTML/CSS/etc. : LF
+*.html text eol=lf
+*.htm text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+*.sass text eol=lf
+
+# Templates et views
+*.ejs text eol=lf
+*.hbs text eol=lf
+*.pug text eol=lf
+
+# Node's tools
+*.npmrc text eol=lf
+*.nvmrc text eol=lf
+*.prettierrc text eol=lf
+*.eslintrc text eol=lf
+*.eslintignore text eol=lf
+*.editorconfig text eol=lf
+*.babelrc text eol=lf
+
+# Docker & CI
+Dockerfile text eol=lf
+*.dockerfile text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Binaries
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.svg binary
+*.pdf binary
+*.zip binary
+*.tar binary
+*.gz binary
+*.tgz binary
+*.bz2 binary
+*.7z binary
