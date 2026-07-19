@@ -1,31 +1,41 @@
-FROM node:20-alpine AS build
+# ---- Build stage ----
+FROM node:22-alpine AS build
 
 WORKDIR /app
 
-COPY apps/api/package*.json ./apps/api/
-COPY package*.json ./
-COPY tsconfig*.json ./
-COPY apps/api ./apps/api
+# 1. Copier la config racine (workspaces)
+COPY package.json package-lock.json ./
+RUN npm ci
 
-RUN npm install
-RUN cd apps/api && npm install
+# 2. Copier tout le projet
+COPY . .
 
-# Build NestJS
-RUN cd apps/api && npm run build
+# 3. Se placer dans le workspace API
+WORKDIR /app/apps/api
+
+# 4. Installer les deps du workspace API
+RUN npm ci
+
+# 5. Build le backend
+RUN npm run build
+
 
 # ---- Runtime stage ----
-FROM node:20-alpine AS runtime
+FROM node:22-alpine AS runtime
 
-WORKDIR /app
+WORKDIR /app/apps/api
 
 ENV NODE_ENV=production
 
+# 6. Copier le package.json et le build depuis le stage build
+COPY apps/api/package.json ./package.json
+# (facultatif si tu as un package-lock.json spécifique à l'API)
+# COPY apps/api/package-lock.json ./package-lock.json
 COPY --from=build /app/apps/api/dist ./dist
-COPY --from=build /app/apps/api/package*.json ./
 
-RUN npm install --omit=dev
+# 7. Installer les deps en runtime (prod)
+RUN npm ci --omit=dev
 
-# NestJS expose port
 EXPOSE 3001
 
 CMD ["node", "dist/main.js"]

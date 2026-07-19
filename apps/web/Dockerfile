@@ -1,23 +1,24 @@
-FROM node:20-alpine AS build
+# ---- Build stage ----
+FROM node:22-alpine AS build
 
 WORKDIR /app
 
-COPY apps/web/package*.json ./apps/web/
-COPY package*.json ./
-COPY apps/web ./apps/web
+COPY package.json package-lock.json ./
+RUN npm ci
 
-RUN npm install
-RUN cd apps/web && npm install
+COPY . .
 
-# Build Vite
-RUN cd apps/web && npm run build
+WORKDIR /app/apps/web
+RUN npm ci
 
-# ---- Runtime stage ----
+# Build workspace web
+RUN npm run build
+
+# ---- Runtime (Nginx) ----
 FROM nginx:1.27-alpine AS runtime
 
 WORKDIR /usr/share/nginx/html
 
-# Copy Vite build (default apps/web/dist)
 COPY --from=build /app/apps/web/dist ./
 
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
