@@ -3,11 +3,21 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
-    container_name: shift-backend
-    restart: unless-stopped
+      target: development
+    init: true
     env_file:
       - .env
+    environment:
+      NODE_ENV: development
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+      API_PORT: 3001
+      WEB_URL: http://localhost:5173
+      GOOGLE_REDIRECT_URI: http://localhost:3001/api/auth/google/callback
+      GOOGLE_TOKEN_PATH: /app/.data/google-tokens.json
     volumes:
+      - ./apps/api:/app/apps/api
+      - api_node_modules:/app/apps/api/node_modules
       - ./.data:/app/.data
     ports:
       - "3001:3001"
@@ -16,13 +26,20 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-    container_name: shift-frontend
-    restart: unless-stopped
-    env_file:
-      - .env
+      target: development
+    init: true
     environment:
-      VITE_API_BASE_URL: http://localhost:3001
+      CHOKIDAR_USEPOLLING: "true"
+      VITE_API_BASE_URL: /api
+      VITE_API_TARGET: http://backend:3001
+    volumes:
+      - ./apps/web:/app/apps/web
+      - web_node_modules:/app/apps/web/node_modules
     ports:
-      - "8080:80"
+      - "5173:5173"
     depends_on:
       - backend
+
+volumes:
+  api_node_modules:
+  web_node_modules:

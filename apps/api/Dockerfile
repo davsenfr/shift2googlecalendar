@@ -1,40 +1,48 @@
-# ---- Build stage ----
-FROM node:22-alpine AS build
+FROM node:22-alpine AS dependencies
 
 WORKDIR /app
 
-# 1. Copier la config racine (workspaces)
+# npm workspaces need the root lockfile and every workspace manifest.
 COPY package.json package-lock.json ./
+COPY apps/api/package.json ./apps/api/package.json
+COPY apps/web/package.json ./apps/web/package.json
 RUN npm ci
 
-# 2. Copier tout le projet
-COPY . .
 
-# 3. Se placer dans le workspace API
+FROM dependencies AS development
+
+ENV NODE_ENV=development
+
+COPY apps/api ./apps/api
+
 WORKDIR /app/apps/api
 
-# 4. Installer les deps du workspace API
-RUN npm ci
+EXPOSE 3001
 
-# 5. Build le backend
-RUN npm run build
+CMD ["npm", "run", "dev"]
 
 
-# ---- Runtime stage ----
+FROM dependencies AS build
+
+COPY apps/api ./apps/api
+RUN npm run build --workspace=@shift-to-gc/api
+
+
 FROM node:22-alpine AS runtime
 
-WORKDIR /app/apps/api
+WORKDIR /app
 
 ENV NODE_ENV=production
 
-# 6. Copier le package.json et le build depuis le stage build
-COPY apps/api/package.json ./package.json
-# (facultatif si tu as un package-lock.json spécifique à l'API)
-# COPY apps/api/package-lock.json ./package-lock.json
-COPY --from=build /app/apps/api/dist ./dist
+# Install only the API's production dependencies from the workspace lockfile.
+COPY package.json package-lock.json ./
+COPY apps/api/package.json ./apps/api/package.json
+COPY apps/web/package.json ./apps/web/package.json
+RUN npm ci --omit=dev --workspace=@shift-to-gc/api
 
-# 7. Installer les deps en runtime (prod)
-RUN npm ci --omit=dev
+COPY --from=build /app/apps/api/dist ./apps/api/dist
+
+WORKDIR /app/apps/api
 
 EXPOSE 3001
 

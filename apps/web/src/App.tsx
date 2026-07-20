@@ -1,5 +1,5 @@
 import { PointerEvent, useCallback, useEffect, useRef, useState } from 'react';
-import { api, AuthStatus, DayState, ShiftType } from './api';
+import { api, API_BASE, AuthStatus, DayState, ShiftType } from './api';
 import { addDays, formatDateTitle, relativeDate, today } from './date';
 
 const SHIFT_COPY: Record<ShiftType, { name: string; time: string; note: string }> = {
@@ -12,8 +12,6 @@ const SHIFT_COPY: Record<ShiftType, { name: string; time: string; note: string }
 };
 
 type DragStart = { x: number; y: number; pointerId: number } | null;
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
 export default function App() {
   const [auth, setAuth] = useState<AuthStatus | null>(null);
