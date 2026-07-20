@@ -5,13 +5,13 @@ import { addDays, formatDateTitle, relativeDate, today } from './date';
 const SHIFT_COPY: Record<ShiftType, { name: string; time: string; note: string }> = {
   morning_short: { name: 'Matin', time: '6h45 — 13h45', note: 'Court' },
   morning_long: { name: 'Matin', time: '6h45 — 14h45', note: 'Long' },
-  all_day_rh: { name: 'RH', time: 'Toute la journée', note: 'Journée' },
-  all_day_rc: { name: 'RC', time: 'Toute la journée', note: 'Journée' },
-  all_day_rf: { name: 'RF', time: 'Toute la journée', note: 'Journée' },
-  all_day_ca: { name: 'CA', time: 'Toute la journée', note: 'Journée' },
+  all_day_rh: { name: 'RH', time: '', note: 'Journée' },
+  all_day_rc: { name: 'RC', time: '', note: 'Journée' },
+  all_day_rf: { name: 'RF', time: '', note: 'Journée' },
+  all_day_ca: { name: 'CA', time: '', note: 'Journée' },
   afternoon: { name: 'Après midi', time: '13h30 — 21h30', note: '' },
-  all_day_other: { name: 'Autres', time: 'Toute la journée', note: 'Titre libre' },
-  all_day_bike: { name: '🚲 Vélo', time: 'Toute la journée', note: 'Kilométrage' },
+  all_day_other: { name: 'Autres', time: '', note: '' },
+  all_day_bike: { name: '🚲 Vélo', time: '', note: 'Kilométrage' },
 };
 
 type DragStart = { x: number; y: number; pointerId: number } | null;
