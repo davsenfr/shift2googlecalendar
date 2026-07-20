@@ -11,6 +11,7 @@ const SHIFT_COPY: Record<ShiftType, { name: string; time: string; note: string }
   all_day_ca: { name: 'CA', time: 'Toute la journée', note: 'Journée' },
   afternoon: { name: 'Après midi', time: '13h30 — 21h30', note: '' },
   all_day_other: { name: 'Autres', time: 'Toute la journée', note: 'Titre libre' },
+  all_day_bike: { name: '🚲 Vélo', time: 'Toute la journée', note: 'Kilométrage' },
 };
 
 type DragStart = { x: number; y: number; pointerId: number } | null;
@@ -26,6 +27,8 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [editingOther, setEditingOther] = useState(false);
   const [otherTitle, setOtherTitle] = useState('Autres');
+  const [editingBike, setEditingBike] = useState(false);
+  const [bikeKilometers, setBikeKilometers] = useState('');
   const dragStart = useRef<DragStart>(null);
 
   useEffect(() => {
@@ -79,6 +82,12 @@ export default function App() {
       setEditingOther(true);
       return;
     }
+    if (shift === 'all_day_bike') {
+      setBikeKilometers(day?.selection === shift ? extractBikeDistance(day.event?.title) : '');
+      setError(null);
+      setEditingBike(true);
+      return;
+    }
     if (day?.selection === shift) return;
     setSaving(shift);
     setError(null);
@@ -103,6 +112,33 @@ export default function App() {
     try {
       const state = await api.select(date, 'all_day_other', title);
       setEditingOther(false);
+      if (isEditing) {
+        setDay(state);
+      } else {
+        setDay(null);
+        setDate((current) => addDays(current, 1));
+      }
+    } catch (reason) {
+      setError((reason as Error).message);
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const saveBike = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const distance = Number(bikeKilometers.replace(',', '.'));
+    if (!Number.isFinite(distance) || distance <= 0 || saving) {
+      setError('Saisissez une distance supérieure à 0 km.');
+      return;
+    }
+    const isEditing = day?.selection === 'all_day_bike';
+    const title = `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(distance)} km`;
+    setSaving('all_day_bike');
+    setError(null);
+    try {
+      const state = await api.select(date, 'all_day_bike', title);
+      setEditingBike(false);
       if (isEditing) {
         setDay(state);
       } else {
@@ -192,6 +228,7 @@ export default function App() {
         <ShiftButton type="all_day_ca" active={day?.selection === 'all_day_ca'} saving={saving === 'all_day_ca'} onChoose={choose} />
         <ShiftButton type="afternoon" active={day?.selection === 'afternoon'} saving={saving === 'afternoon'} onChoose={choose} />
         <ShiftButton type="all_day_other" active={day?.selection === 'all_day_other'} saving={saving === 'all_day_other'} onChoose={choose} />
+        <ShiftButton type="all_day_bike" active={day?.selection === 'all_day_bike'} saving={saving === 'all_day_bike'} onChoose={choose} />
       </section>
 
       {editingOther && (
@@ -220,6 +257,44 @@ export default function App() {
             <div className="dialog-actions">
               <button type="button" onClick={() => setEditingOther(false)} disabled={Boolean(saving)}>Annuler</button>
               <button type="submit" disabled={Boolean(saving) || !otherTitle.trim()}>
+                {saving ? 'Enregistrement…' : 'Enregistrer'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {editingBike && (
+        <div
+          className="other-dialog-backdrop"
+          onPointerDown={(event) => event.stopPropagation()}
+          onPointerUp={(event) => event.stopPropagation()}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape' && !saving) setEditingBike(false);
+          }}
+        >
+          <form className="other-dialog bike-dialog" role="dialog" aria-modal="true" aria-labelledby="bike-dialog-title" onSubmit={saveBike}>
+            <p className="eyebrow">Sortie à vélo</p>
+            <h2 id="bike-dialog-title">Kilométrage parcouru</h2>
+            <label htmlFor="bike-kilometers">Distance en kilomètres</label>
+            <input
+              id="bike-kilometers"
+              type="number"
+              inputMode="decimal"
+              min="0.1"
+              step="0.1"
+              value={bikeKilometers}
+              onChange={(event) => setBikeKilometers(event.target.value)}
+              placeholder="Ex. 24,5"
+              required
+              autoFocus
+              disabled={Boolean(saving)}
+            />
+            <p className="title-preview">Titre créé : 🚲 {bikeKilometers || '…'} km</p>
+            {error && <p className="dialog-error" role="alert">{error}</p>}
+            <div className="dialog-actions">
+              <button type="button" onClick={() => setEditingBike(false)} disabled={Boolean(saving)}>Annuler</button>
+              <button type="submit" disabled={Boolean(saving) || !bikeKilometers}>
                 {saving ? 'Enregistrement…' : 'Enregistrer'}
               </button>
             </div>
@@ -280,4 +355,8 @@ function CenteredState({ message, eyebrow }: { message: string; eyebrow?: string
 function formatEventTime(value: string | null): string {
   if (!value) return '?';
   return new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+}
+
+function extractBikeDistance(title: string | null | undefined): string {
+  return title?.match(/\d+(?:[.,]\d+)?/)?.[0].replace(',', '.') ?? '';
 }

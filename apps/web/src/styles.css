@@ -85,7 +85,7 @@ button { -webkit-tap-highlight-color: transparent; }
   min-height: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(5, minmax(0, 1fr));
   gap: 2px;
   background: #101813;
   transition: opacity .2s;
@@ -102,7 +102,7 @@ button { -webkit-tap-highlight-color: transparent; }
   border: 0;
   color: var(--shift-color);
   background: var(--shift-background);
-  padding: 18px 10px max(18px, env(safe-area-inset-bottom));
+  padding: 12px 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -140,6 +140,14 @@ button { -webkit-tap-highlight-color: transparent; }
   --shift-color: #fffdf5;
   --shift-active-background: #6a1b9a;
 }
+.shift-card.all_day_bike {
+  --shift-background: #f6c026;
+  --shift-color: #332600;
+  --shift-active-background: #dfa900;
+  --shift-active-color: #332600;
+  grid-column: 1 / -1;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
 .shift-card:active { transform: scale(.99); }
 .shift-card.active {
   color: var(--shift-active-color);
@@ -147,14 +155,14 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 .shift-card strong {
   font-family: 'Fraunces', Georgia, serif;
-  font-size: clamp(1.75rem, 8vw, 3.5rem);
+  font-size: clamp(1.35rem, 4dvh, 2.6rem);
   line-height: 1;
 }
-.shift-time { font-size: clamp(.78rem, 3.5vw, 1rem); margin-top: 10px; font-weight: 600; }
+.shift-time { font-size: clamp(.68rem, 2dvh, .9rem); margin-top: 5px; font-weight: 600; }
 .shift-note {
   position: absolute;
-  top: 18px;
-  font-size: .65rem;
+  top: 8px;
+  font-size: .58rem;
   letter-spacing: .15em;
   font-weight: 700;
   text-transform: uppercase;
@@ -162,8 +170,8 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 .selection-state {
   position: absolute;
-  bottom: max(17px, env(safe-area-inset-bottom));
-  font-size: .7rem;
+  bottom: 7px;
+  font-size: .58rem;
   font-weight: 700;
   letter-spacing: .07em;
   text-transform: uppercase;
@@ -171,6 +179,7 @@ button { -webkit-tap-highlight-color: transparent; }
   transform: translateY(4px);
   transition: opacity .18s, transform .18s;
 }
+.shift-card.all_day_bike .selection-state { bottom: max(7px, env(safe-area-inset-bottom)); }
 .shift-card.active .selection-state { opacity: 1; transform: none; }
 
 .other-dialog-backdrop {
@@ -214,11 +223,14 @@ button { -webkit-tap-highlight-color: transparent; }
   outline: none;
 }
 .other-dialog input:focus { border-color: #8e24aa; box-shadow: 0 0 0 3px rgba(142, 36, 170, .16); }
+.bike-dialog input:focus { border-color: #d09c00; box-shadow: 0 0 0 3px rgba(246, 192, 38, .24); }
+.title-preview { margin: 9px 0 0; color: #6a6150; font-size: .76rem; }
 .dialog-error { margin: 10px 0 0; color: #a50e0e; font-size: .78rem; }
 .dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 20px; }
 .dialog-actions button { min-height: 46px; border: 0; border-radius: 8px; cursor: pointer; font-weight: 700; }
 .dialog-actions button:first-child { color: #3f4741; background: #dedbd1; }
 .dialog-actions button:last-child { color: #fff; background: #8e24aa; }
+.bike-dialog .dialog-actions button:last-child { color: #332600; background: #f6c026; }
 .dialog-actions button:disabled { cursor: default; opacity: .55; }
 
 .notice {

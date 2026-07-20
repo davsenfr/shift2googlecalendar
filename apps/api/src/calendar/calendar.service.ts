@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { calendar_v3, google } from 'googleapis';
 import { DateTime } from 'luxon';
 import { GoogleAuthService } from '../auth/google-auth.service';
-import { SHIFTS, ShiftDefinition, ShiftType } from './shifts';
+import { SHIFTS, SHIFT_TYPES, ShiftDefinition, ShiftType } from './shifts';
 
 const APP_MARKER_KEY = 'shiftToGc';
 const APP_MARKER_VALUE = 'v1';
@@ -129,14 +129,16 @@ export class CalendarService {
 
   private matchShift(event: calendar_v3.Schema$Event): ShiftType | null {
     const normalizedTitle = (event.summary ?? '').trim().toLocaleLowerCase('fr');
+    const managedShiftType = event.extendedProperties?.private?.shiftType;
 
     if (
       this.isManaged(event) &&
-      event.extendedProperties?.private?.shiftType === 'all_day_other' &&
+      SHIFT_TYPES.includes(managedShiftType as ShiftType) &&
+      SHIFTS[managedShiftType as ShiftType].editableTitle &&
       event.start?.date &&
       event.end?.date
     ) {
-      return 'all_day_other';
+      return managedShiftType as ShiftType;
     }
 
     for (const shift of Object.values(SHIFTS)) {
@@ -172,10 +174,13 @@ export class CalendarService {
     shift: ShiftDefinition,
     customTitle?: string,
   ): calendar_v3.Schema$Event {
-    const title = customTitle?.trim();
-    if (shift.editableTitle && !title) {
+    const customTitleValue = customTitle?.trim();
+    if (shift.editableTitle && !customTitleValue) {
       throw new BadRequestException('Le titre de l’événement est obligatoire.');
     }
+    const title = shift.titlePrefix && !customTitleValue?.startsWith(shift.titlePrefix)
+      ? `${shift.titlePrefix} ${customTitleValue}`
+      : customTitleValue;
 
     const timing = shift.allDay
       ? {

@@ -6,7 +6,8 @@ export type ShiftType =
   | 'all_day_rf'
   | 'all_day_ca'
   | 'afternoon'
-  | 'all_day_other';
+  | 'all_day_other'
+  | 'all_day_bike';
 
 export type AuthStatus = {
   configured: boolean;
