@@ -81,7 +81,7 @@ export default function App() {
       return;
     }
     if (shift === 'all_day_bike') {
-      setBikeKilometers(day?.selection === shift ? extractBikeDistance(day.event?.title) : '');
+      setBikeKilometers(extractBikeDistance(day?.bikeEvent?.title));
       setError(null);
       setEditingBike(true);
       return;
@@ -130,7 +130,7 @@ export default function App() {
       setError('Saisissez une distance supérieure à 0 km.');
       return;
     }
-    const isEditing = day?.selection === 'all_day_bike';
+    const isEditing = Boolean(day?.bikeEvent);
     const title = `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(distance)} km`;
     setSaving('all_day_bike');
     setError(null);
@@ -226,7 +226,13 @@ export default function App() {
         <ShiftButton type="all_day_ca" active={day?.selection === 'all_day_ca'} saving={saving === 'all_day_ca'} onChoose={choose} />
         <ShiftButton type="afternoon" active={day?.selection === 'afternoon'} saving={saving === 'afternoon'} onChoose={choose} />
         <ShiftButton type="all_day_other" active={day?.selection === 'all_day_other'} saving={saving === 'all_day_other'} onChoose={choose} />
-        <ShiftButton type="all_day_bike" active={day?.selection === 'all_day_bike'} saving={saving === 'all_day_bike'} onChoose={choose} />
+        <ShiftButton
+          type="all_day_bike"
+          active={Boolean(day?.bikeEvent)}
+          saving={saving === 'all_day_bike'}
+          detail={day?.bikeEvent ? `${extractBikeDistance(day.bikeEvent.title)} km` : undefined}
+          onChoose={choose}
+        />
       </section>
 
       {editingOther && (
@@ -318,11 +324,13 @@ function ShiftButton({
   type,
   active,
   saving,
+  detail,
   onChoose,
 }: {
   type: ShiftType;
   active: boolean;
   saving: boolean;
+  detail?: string;
   onChoose: (type: ShiftType) => void;
 }) {
   const copy = SHIFT_COPY[type];
@@ -335,7 +343,7 @@ function ShiftButton({
     >
       <span className="shift-note">{copy.note || 'Service'}</span>
       <strong>{copy.name}</strong>
-      <span className="shift-time">{copy.time}</span>
+      <span className="shift-time">{detail || copy.time}</span>
       <span className="selection-state">{saving ? 'Enregistrement…' : active ? '✓ Sélectionné' : 'Choisir'}</span>
     </button>
   );
