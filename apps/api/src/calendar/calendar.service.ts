@@ -44,12 +44,12 @@ export class CalendarService {
     return this.toDayState(date, events);
   }
 
-  async selectShift(date: string, shiftType: ShiftType): Promise<DayState> {
+  async selectShift(date: string, shiftType: ShiftType, customTitle?: string): Promise<DayState> {
     const day = this.parseDate(date);
     const calendar = await this.getCalendarClient();
     const events = await this.listEvents(calendar, day);
     const shift = SHIFTS[shiftType];
-    const resource = this.eventResource(date, shift);
+    const resource = this.eventResource(date, shift, customTitle);
     const managedEvent = events.find((event) => this.isManaged(event));
     const matchingUnmanagedEvent = events.find(
       (event) => !this.isManaged(event) && this.matchShift(event) === shiftType,
@@ -130,6 +130,15 @@ export class CalendarService {
   private matchShift(event: calendar_v3.Schema$Event): ShiftType | null {
     const normalizedTitle = (event.summary ?? '').trim().toLocaleLowerCase('fr');
 
+    if (
+      this.isManaged(event) &&
+      event.extendedProperties?.private?.shiftType === 'all_day_other' &&
+      event.start?.date &&
+      event.end?.date
+    ) {
+      return 'all_day_other';
+    }
+
     for (const shift of Object.values(SHIFTS)) {
       if (shift.allDay) {
         if (
@@ -158,7 +167,16 @@ export class CalendarService {
     return null;
   }
 
-  private eventResource(date: string, shift: ShiftDefinition): calendar_v3.Schema$Event {
+  private eventResource(
+    date: string,
+    shift: ShiftDefinition,
+    customTitle?: string,
+  ): calendar_v3.Schema$Event {
+    const title = customTitle?.trim();
+    if (shift.editableTitle && !title) {
+      throw new BadRequestException('Le titre de l’événement est obligatoire.');
+    }
+
     const timing = shift.allDay
       ? {
           start: { date },
@@ -176,7 +194,7 @@ export class CalendarService {
         };
 
     return {
-      summary: shift.title,
+      summary: shift.editableTitle ? title : shift.title,
       description: 'Créé avec Shift to Google Calendar',
       colorId: shift.googleColorId,
       ...timing,
@@ -184,6 +202,7 @@ export class CalendarService {
         private: {
           [APP_MARKER_KEY]: APP_MARKER_VALUE,
           shiftDate: date,
+          shiftType: shift.type,
         },
       },
     };

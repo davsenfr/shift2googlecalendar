@@ -1,4 +1,4 @@
-import { PointerEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { FormEvent, PointerEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { api, AuthStatus, DayState, ShiftType } from './api';
 import { addDays, formatDateTitle, relativeDate, today } from './date';
 
@@ -10,6 +10,7 @@ const SHIFT_COPY: Record<ShiftType, { name: string; time: string; note: string }
   all_day_rf: { name: 'RF', time: 'Toute la journée', note: 'Journée' },
   all_day_ca: { name: 'CA', time: 'Toute la journée', note: 'Journée' },
   afternoon: { name: 'Après midi', time: '13h30 — 21h30', note: '' },
+  all_day_other: { name: 'Autres', time: 'Toute la journée', note: 'Titre libre' },
 };
 
 type DragStart = { x: number; y: number; pointerId: number } | null;
@@ -23,6 +24,8 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<ShiftType | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editingOther, setEditingOther] = useState(false);
+  const [otherTitle, setOtherTitle] = useState('Autres');
   const dragStart = useRef<DragStart>(null);
 
   useEffect(() => {
@@ -69,13 +72,43 @@ export default function App() {
   }, [auth?.connected, refresh, saving]);
 
   const choose = async (shift: ShiftType) => {
-    if (saving || loading || day?.selection === shift) return;
+    if (saving || loading) return;
+    if (shift === 'all_day_other') {
+      setOtherTitle(day?.selection === shift ? day.event?.title || 'Autres' : 'Autres');
+      setError(null);
+      setEditingOther(true);
+      return;
+    }
+    if (day?.selection === shift) return;
     setSaving(shift);
     setError(null);
     try {
       await api.select(date, shift);
       setDay(null);
       setDate((current) => addDays(current, 1));
+    } catch (reason) {
+      setError((reason as Error).message);
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const saveOther = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const title = otherTitle.trim();
+    if (!title || saving) return;
+    const isEditing = day?.selection === 'all_day_other';
+    setSaving('all_day_other');
+    setError(null);
+    try {
+      const state = await api.select(date, 'all_day_other', title);
+      setEditingOther(false);
+      if (isEditing) {
+        setDay(state);
+      } else {
+        setDay(null);
+        setDate((current) => addDays(current, 1));
+      }
     } catch (reason) {
       setError((reason as Error).message);
     } finally {
@@ -151,18 +184,48 @@ export default function App() {
       </header>
 
       <section className={`shift-grid ${loading && !day ? 'is-loading' : ''}`} aria-busy={loading || Boolean(saving)}>
-        <div className="morning-row">
-          <ShiftButton type="morning_short" active={day?.selection === 'morning_short'} saving={saving === 'morning_short'} onChoose={choose} />
-          <ShiftButton type="morning_long" active={day?.selection === 'morning_long'} saving={saving === 'morning_long'} onChoose={choose} />
-        </div>
-        <div className="day-off-row" aria-label="Événements de journée entière">
-          <ShiftButton type="all_day_rh" active={day?.selection === 'all_day_rh'} saving={saving === 'all_day_rh'} onChoose={choose} compact />
-          <ShiftButton type="all_day_rc" active={day?.selection === 'all_day_rc'} saving={saving === 'all_day_rc'} onChoose={choose} compact />
-          <ShiftButton type="all_day_rf" active={day?.selection === 'all_day_rf'} saving={saving === 'all_day_rf'} onChoose={choose} compact />
-          <ShiftButton type="all_day_ca" active={day?.selection === 'all_day_ca'} saving={saving === 'all_day_ca'} onChoose={choose} compact />
-        </div>
+        <ShiftButton type="morning_short" active={day?.selection === 'morning_short'} saving={saving === 'morning_short'} onChoose={choose} />
+        <ShiftButton type="morning_long" active={day?.selection === 'morning_long'} saving={saving === 'morning_long'} onChoose={choose} />
+        <ShiftButton type="all_day_rh" active={day?.selection === 'all_day_rh'} saving={saving === 'all_day_rh'} onChoose={choose} />
+        <ShiftButton type="all_day_rc" active={day?.selection === 'all_day_rc'} saving={saving === 'all_day_rc'} onChoose={choose} />
+        <ShiftButton type="all_day_rf" active={day?.selection === 'all_day_rf'} saving={saving === 'all_day_rf'} onChoose={choose} />
+        <ShiftButton type="all_day_ca" active={day?.selection === 'all_day_ca'} saving={saving === 'all_day_ca'} onChoose={choose} />
         <ShiftButton type="afternoon" active={day?.selection === 'afternoon'} saving={saving === 'afternoon'} onChoose={choose} />
+        <ShiftButton type="all_day_other" active={day?.selection === 'all_day_other'} saving={saving === 'all_day_other'} onChoose={choose} />
       </section>
+
+      {editingOther && (
+        <div
+          className="other-dialog-backdrop"
+          onPointerDown={(event) => event.stopPropagation()}
+          onPointerUp={(event) => event.stopPropagation()}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape' && !saving) setEditingOther(false);
+          }}
+        >
+          <form className="other-dialog" role="dialog" aria-modal="true" aria-labelledby="other-dialog-title" onSubmit={saveOther}>
+            <p className="eyebrow">Événement personnalisé</p>
+            <h2 id="other-dialog-title">Titre de l’événement</h2>
+            <label htmlFor="other-title">Ce titre apparaîtra dans Google Calendar.</label>
+            <input
+              id="other-title"
+              value={otherTitle}
+              onChange={(event) => setOtherTitle(event.target.value)}
+              maxLength={200}
+              required
+              autoFocus
+              disabled={Boolean(saving)}
+            />
+            {error && <p className="dialog-error" role="alert">{error}</p>}
+            <div className="dialog-actions">
+              <button type="button" onClick={() => setEditingOther(false)} disabled={Boolean(saving)}>Annuler</button>
+              <button type="submit" disabled={Boolean(saving) || !otherTitle.trim()}>
+                {saving ? 'Enregistrement…' : 'Enregistrer'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {day?.event?.modifiedInGoogle && (
         <aside className="notice" role="status">
@@ -183,19 +246,17 @@ function ShiftButton({
   active,
   saving,
   onChoose,
-  compact = false,
 }: {
   type: ShiftType;
   active: boolean;
   saving: boolean;
   onChoose: (type: ShiftType) => void;
-  compact?: boolean;
 }) {
   const copy = SHIFT_COPY[type];
   return (
     <button
       type="button"
-      className={`shift-card ${type} ${compact ? 'compact' : ''} ${active ? 'active' : ''}`}
+      className={`shift-card ${type} ${active ? 'active' : ''}`}
       aria-pressed={active}
       onClick={() => onChoose(type)}
     >

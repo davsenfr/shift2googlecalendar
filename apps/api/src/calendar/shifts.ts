@@ -6,6 +6,7 @@ export const SHIFT_TYPES = [
   'all_day_rf',
   'all_day_ca',
   'afternoon',
+  'all_day_other',
 ] as const;
 export type ShiftType = (typeof SHIFT_TYPES)[number];
 
@@ -16,6 +17,7 @@ export type ShiftDefinition = {
   end?: string;
   allDay?: boolean;
   googleColorId?: string;
+  editableTitle?: boolean;
 };
 
 export const SHIFTS: Record<ShiftType, ShiftDefinition> = {
@@ -63,5 +65,12 @@ export const SHIFTS: Record<ShiftType, ShiftDefinition> = {
     start: '13:30',
     end: '21:30',
     googleColorId: '7',
+  },
+  all_day_other: {
+    type: 'all_day_other',
+    title: 'Autres',
+    allDay: true,
+    googleColorId: '3',
+    editableTitle: true,
   },
 };
