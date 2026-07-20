@@ -4,7 +4,10 @@ export type ShiftType =
   | 'all_day_rh'
   | 'all_day_rc'
   | 'all_day_rf'
-  | 'afternoon';
+  | 'all_day_ca'
+  | 'afternoon'
+  | 'all_day_other'
+  | 'all_day_bike';
 
 export type AuthStatus = {
   configured: boolean;
@@ -48,9 +51,9 @@ export const api = {
   authStatus: () => request<AuthStatus>('/auth/status'),
   day: (date: string, signal?: AbortSignal) =>
     request<DayState>(`/calendar/days/${date}`, { signal }),
-  select: (date: string, shift: ShiftType) =>
+  select: (date: string, shift: ShiftType, title?: string) =>
     request<DayState>(`/calendar/days/${date}/shift`, {
       method: 'PUT',
-      body: JSON.stringify({ shift }),
+      body: JSON.stringify({ shift, title }),
     }),
 };

@@ -4,7 +4,10 @@ export const SHIFT_TYPES = [
   'all_day_rh',
   'all_day_rc',
   'all_day_rf',
+  'all_day_ca',
   'afternoon',
+  'all_day_other',
+  'all_day_bike',
 ] as const;
 export type ShiftType = (typeof SHIFT_TYPES)[number];
 
@@ -14,6 +17,9 @@ export type ShiftDefinition = {
   start?: string;
   end?: string;
   allDay?: boolean;
+  googleColorId?: string;
+  editableTitle?: boolean;
+  titlePrefix?: string;
 };
 
 export const SHIFTS: Record<ShiftType, ShiftDefinition> = {
@@ -22,32 +28,59 @@ export const SHIFTS: Record<ShiftType, ShiftDefinition> = {
     title: 'Matin',
     start: '06:45',
     end: '13:45',
+    googleColorId: '2',
   },
   morning_long: {
     type: 'morning_long',
     title: 'Matin',
     start: '06:45',
     end: '14:45',
+    googleColorId: '10',
   },
   all_day_rh: {
     type: 'all_day_rh',
     title: 'RH',
     allDay: true,
+    googleColorId: '11',
   },
   all_day_rc: {
     type: 'all_day_rc',
     title: 'RC',
     allDay: true,
+    googleColorId: '11',
   },
   all_day_rf: {
     type: 'all_day_rf',
     title: 'RF',
     allDay: true,
+    googleColorId: '11',
+  },
+  all_day_ca: {
+    type: 'all_day_ca',
+    title: 'CA',
+    allDay: true,
+    googleColorId: '11',
   },
   afternoon: {
     type: 'afternoon',
     title: 'Après midi',
     start: '13:30',
     end: '21:30',
+    googleColorId: '7',
+  },
+  all_day_other: {
+    type: 'all_day_other',
+    title: 'Autres',
+    allDay: true,
+    googleColorId: '3',
+    editableTitle: true,
+  },
+  all_day_bike: {
+    type: 'all_day_bike',
+    title: 'Vélo',
+    allDay: true,
+    googleColorId: '5',
+    editableTitle: true,
+    titlePrefix: '🚲',
   },
 };
