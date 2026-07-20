@@ -8,6 +8,7 @@ const SHIFT_COPY: Record<ShiftType, { name: string; time: string; note: string }
   all_day_rh: { name: 'RH', time: 'Toute la journée', note: 'Journée' },
   all_day_rc: { name: 'RC', time: 'Toute la journée', note: 'Journée' },
   all_day_rf: { name: 'RF', time: 'Toute la journée', note: 'Journée' },
+  all_day_ca: { name: 'CA', time: 'Toute la journée', note: 'Journée' },
   afternoon: { name: 'Après midi', time: '13h30 — 21h30', note: '' },
 };
 
@@ -158,6 +159,7 @@ export default function App() {
           <ShiftButton type="all_day_rh" active={day?.selection === 'all_day_rh'} saving={saving === 'all_day_rh'} onChoose={choose} compact />
           <ShiftButton type="all_day_rc" active={day?.selection === 'all_day_rc'} saving={saving === 'all_day_rc'} onChoose={choose} compact />
           <ShiftButton type="all_day_rf" active={day?.selection === 'all_day_rf'} saving={saving === 'all_day_rf'} onChoose={choose} compact />
+          <ShiftButton type="all_day_ca" active={day?.selection === 'all_day_ca'} saving={saving === 'all_day_ca'} onChoose={choose} compact />
         </div>
         <ShiftButton type="afternoon" active={day?.selection === 'afternoon'} saving={saving === 'afternoon'} onChoose={choose} />
       </section>

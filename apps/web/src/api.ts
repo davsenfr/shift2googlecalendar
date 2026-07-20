@@ -4,6 +4,7 @@ export type ShiftType =
   | 'all_day_rh'
   | 'all_day_rc'
   | 'all_day_rf'
+  | 'all_day_ca'
   | 'afternoon';
 
 export type AuthStatus = {

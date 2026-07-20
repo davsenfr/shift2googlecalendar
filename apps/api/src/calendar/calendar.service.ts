@@ -178,6 +178,7 @@ export class CalendarService {
     return {
       summary: shift.title,
       description: 'Créé avec Shift to Google Calendar',
+      colorId: shift.googleColorId,
       ...timing,
       extendedProperties: {
         private: {
