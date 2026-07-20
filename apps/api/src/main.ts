@@ -18,7 +18,7 @@ async function bootstrap() {
   );
 
   const port = (process.env.PORT && parseInt(process.env.PORT, 10)) ||
-      config.get<number>('API_PORT', 3000);
+      config.get<number>('API_PORT', 3001);
   await app.listen(port, '0.0.0.0');
 }
 
