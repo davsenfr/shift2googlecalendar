@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { calendar_v3, google } from 'googleapis';
 import { DateTime } from 'luxon';
 import { GoogleAuthService } from '../auth/google-auth.service';
-import { SHIFTS, ShiftDefinition, ShiftType } from './shifts';
+import { SHIFTS, SHIFT_TYPES, ShiftDefinition, ShiftType } from './shifts';
 
 const APP_MARKER_KEY = 'shiftToGc';
 const APP_MARKER_VALUE = 'v1';
@@ -44,12 +44,12 @@ export class CalendarService {
     return this.toDayState(date, events);
   }
 
-  async selectShift(date: string, shiftType: ShiftType): Promise<DayState> {
+  async selectShift(date: string, shiftType: ShiftType, customTitle?: string): Promise<DayState> {
     const day = this.parseDate(date);
     const calendar = await this.getCalendarClient();
     const events = await this.listEvents(calendar, day);
     const shift = SHIFTS[shiftType];
-    const resource = this.eventResource(date, shift);
+    const resource = this.eventResource(date, shift, customTitle);
     const managedEvent = events.find((event) => this.isManaged(event));
     const matchingUnmanagedEvent = events.find(
       (event) => !this.isManaged(event) && this.matchShift(event) === shiftType,
@@ -129,6 +129,17 @@ export class CalendarService {
 
   private matchShift(event: calendar_v3.Schema$Event): ShiftType | null {
     const normalizedTitle = (event.summary ?? '').trim().toLocaleLowerCase('fr');
+    const managedShiftType = event.extendedProperties?.private?.shiftType;
+
+    if (
+      this.isManaged(event) &&
+      SHIFT_TYPES.includes(managedShiftType as ShiftType) &&
+      SHIFTS[managedShiftType as ShiftType].editableTitle &&
+      event.start?.date &&
+      event.end?.date
+    ) {
+      return managedShiftType as ShiftType;
+    }
 
     for (const shift of Object.values(SHIFTS)) {
       if (shift.allDay) {
@@ -158,7 +169,19 @@ export class CalendarService {
     return null;
   }
 
-  private eventResource(date: string, shift: ShiftDefinition): calendar_v3.Schema$Event {
+  private eventResource(
+    date: string,
+    shift: ShiftDefinition,
+    customTitle?: string,
+  ): calendar_v3.Schema$Event {
+    const customTitleValue = customTitle?.trim();
+    if (shift.editableTitle && !customTitleValue) {
+      throw new BadRequestException('Le titre de l’événement est obligatoire.');
+    }
+    const title = shift.titlePrefix && !customTitleValue?.startsWith(shift.titlePrefix)
+      ? `${shift.titlePrefix} ${customTitleValue}`
+      : customTitleValue;
+
     const timing = shift.allDay
       ? {
           start: { date },
@@ -176,13 +199,15 @@ export class CalendarService {
         };
 
     return {
-      summary: shift.title,
+      summary: shift.editableTitle ? title : shift.title,
       description: 'Créé avec Shift to Google Calendar',
+      colorId: shift.googleColorId,
       ...timing,
       extendedProperties: {
         private: {
           [APP_MARKER_KEY]: APP_MARKER_VALUE,
           shiftDate: date,
+          shiftType: shift.type,
         },
       },
     };

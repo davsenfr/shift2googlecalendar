@@ -3,4 +3,5 @@ dist/
 .env
 .data/
 *.log
+*.tsbuildinfo
 .idea/
