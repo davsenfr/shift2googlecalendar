@@ -17,17 +17,20 @@ export type AuthStatus = {
 export type DayState = {
   date: string;
   selection: ShiftType | null;
-  event: {
-    id: string | null;
-    title: string;
-    startsAt: string | null;
-    endsAt: string | null;
-    htmlLink: string | null;
-    managedByApp: boolean;
-    modifiedInGoogle: boolean;
-  } | null;
+  event: CalendarEventState | null;
+  bikeEvent: CalendarEventState | null;
   duplicateCount: number;
   syncedAt: string;
+};
+
+type CalendarEventState = {
+  id: string | null;
+  title: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  htmlLink: string | null;
+  managedByApp: boolean;
+  modifiedInGoogle: boolean;
 };
 
 export const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';

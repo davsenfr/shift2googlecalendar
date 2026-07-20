@@ -11,17 +11,20 @@ const APP_MARKER_VALUE = 'v1';
 export type DayState = {
   date: string;
   selection: ShiftType | null;
-  event: {
-    id: string | null;
-    title: string;
-    startsAt: string | null;
-    endsAt: string | null;
-    htmlLink: string | null;
-    managedByApp: boolean;
-    modifiedInGoogle: boolean;
-  } | null;
+  event: CalendarEventState | null;
+  bikeEvent: CalendarEventState | null;
   duplicateCount: number;
   syncedAt: string;
+};
+
+type CalendarEventState = {
+  id: string | null;
+  title: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  htmlLink: string | null;
+  managedByApp: boolean;
+  modifiedInGoogle: boolean;
 };
 
 @Injectable()
@@ -50,7 +53,9 @@ export class CalendarService {
     const events = await this.listEvents(calendar, day);
     const shift = SHIFTS[shiftType];
     const resource = this.eventResource(date, shift, customTitle);
-    const managedEvent = events.find((event) => this.isManaged(event));
+    const managedEvent = events.find((event) =>
+      this.isManaged(event) && this.isBikeEvent(event) === (shiftType === 'all_day_bike'),
+    );
     const matchingUnmanagedEvent = events.find(
       (event) => !this.isManaged(event) && this.matchShift(event) === shiftType,
     );
@@ -95,25 +100,37 @@ export class CalendarService {
 
   private toDayState(date: string, events: calendar_v3.Schema$Event[]): DayState {
     const candidates = events.filter((event) => this.isManaged(event) || this.matchShift(event));
-    const event = this.pickRelevantEvent(candidates);
+    const bikeCandidates = candidates.filter((event) => this.isBikeEvent(event));
+    const shiftCandidates = candidates.filter((event) => !this.isBikeEvent(event));
+    const event = this.pickRelevantEvent(shiftCandidates);
+    const bikeEvent = this.pickRelevantEvent(bikeCandidates);
     const selection = event ? this.matchShift(event) : null;
 
     return {
       date,
       selection,
-      event: event
-        ? {
-            id: event.id ?? null,
-            title: event.summary ?? '',
-            startsAt: event.start?.dateTime ?? event.start?.date ?? null,
-            endsAt: event.end?.dateTime ?? event.end?.date ?? null,
-            htmlLink: event.htmlLink ?? null,
-            managedByApp: this.isManaged(event),
-            modifiedInGoogle: this.isManaged(event) && selection === null,
-          }
-        : null,
-      duplicateCount: Math.max(0, candidates.length - 1),
+      event: this.toEventState(event, selection),
+      bikeEvent: this.toEventState(bikeEvent, bikeEvent ? this.matchShift(bikeEvent) : null),
+      duplicateCount:
+        Math.max(0, shiftCandidates.length - 1) + Math.max(0, bikeCandidates.length - 1),
       syncedAt: new Date().toISOString(),
+    };
+  }
+
+  private toEventState(
+    event: calendar_v3.Schema$Event | undefined,
+    selection: ShiftType | null,
+  ): CalendarEventState | null {
+    if (!event) return null;
+
+    return {
+      id: event.id ?? null,
+      title: event.summary ?? '',
+      startsAt: event.start?.dateTime ?? event.start?.date ?? null,
+      endsAt: event.end?.dateTime ?? event.end?.date ?? null,
+      htmlLink: event.htmlLink ?? null,
+      managedByApp: this.isManaged(event),
+      modifiedInGoogle: this.isManaged(event) && selection === null,
     };
   }
 
@@ -125,6 +142,11 @@ export class CalendarService {
 
   private isManaged(event: calendar_v3.Schema$Event): boolean {
     return event.extendedProperties?.private?.[APP_MARKER_KEY] === APP_MARKER_VALUE;
+  }
+
+  private isBikeEvent(event: calendar_v3.Schema$Event): boolean {
+    return event.extendedProperties?.private?.shiftType === 'all_day_bike' ||
+      this.matchShift(event) === 'all_day_bike';
   }
 
   private matchShift(event: calendar_v3.Schema$Event): ShiftType | null {
