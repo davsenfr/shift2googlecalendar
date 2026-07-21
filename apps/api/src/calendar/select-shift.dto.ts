@@ -1,5 +1,5 @@
 import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
-import { SHIFT_TYPES, ShiftType } from './shifts';
+import { SHIFT_STATUSES, SHIFT_TYPES, ShiftStatus, ShiftType } from './shifts';
 
 export class SelectShiftDto {
   @IsIn(SHIFT_TYPES)
@@ -9,4 +9,8 @@ export class SelectShiftDto {
   @IsString()
   @MaxLength(200)
   title?: string;
+
+  @IsOptional()
+  @IsIn(SHIFT_STATUSES)
+  status?: ShiftStatus;
 }

@@ -1,5 +1,5 @@
 import { FormEvent, PointerEvent, useCallback, useEffect, useRef, useState } from 'react';
-import { api, API_BASE, AuthStatus, DayState, ShiftType } from './api';
+import { api, API_BASE, AuthStatus, DayState, ShiftStatus, ShiftType } from './api';
 import { addDays, formatDateTitle, relativeDate, today } from './date';
 
 const SHIFT_COPY: Record<ShiftType, { name: string; time: string; note: string }> = {
@@ -30,6 +30,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [editingOther, setEditingOther] = useState(false);
   const [otherTitle, setOtherTitle] = useState('Autres');
+  const [otherStatus, setOtherStatus] = useState<ShiftStatus>('provisional');
   const [editingBike, setEditingBike] = useState(false);
   const [bikeKilometers, setBikeKilometers] = useState('');
   const [pageTransition, setPageTransition] = useState<PageTransition>('idle');
@@ -97,10 +98,21 @@ export default function App() {
     }
   };
 
-  const choose = async (shift: ShiftType) => {
+  const choose = async (shift: ShiftType, status: ShiftStatus = 'provisional') => {
     if (saving || loading || transitionLock.current) return;
+    if (day?.selection === shift && shift !== 'all_day_bike') {
+      if (day.status !== status) {
+        await changeShiftStatus(status);
+        return;
+      }
+      if (shift !== 'all_day_other') {
+        await saveCurrentShiftStatus(status);
+        return;
+      }
+    }
     if (shift === 'all_day_other') {
-      setOtherTitle(day?.selection === shift ? day.event?.title || 'Autres' : 'Autres');
+      setOtherTitle(day?.selection === shift ? stripProvisionalTitlePrefix(day.event?.title) || 'Autres' : 'Autres');
+      setOtherStatus(day?.selection === shift ? day.status ?? 'confirmed' : status);
       setError(null);
       setEditingOther(true);
       return;
@@ -115,7 +127,7 @@ export default function App() {
     setSaving(shift);
     setError(null);
     try {
-      await api.select(date, shift);
+      await api.select(date, shift, undefined, status);
       await transitionToDay(1);
     } catch (reason) {
       setError((reason as Error).message);
@@ -132,7 +144,7 @@ export default function App() {
     setSaving('all_day_other');
     setError(null);
     try {
-      const state = await api.select(date, 'all_day_other', title);
+      const state = await api.select(date, 'all_day_other', title, otherStatus);
       setEditingOther(false);
       if (isEditing) {
         setDay(state);
@@ -181,6 +193,32 @@ export default function App() {
   const moveWithTransition = (amount: number) => {
     if (saving) return;
     void transitionToDay(amount);
+  };
+
+  const changeShiftStatus = async (status: ShiftStatus) => {
+    if (status === day?.status || saving || loading || transitionLock.current) return;
+    await saveCurrentShiftStatus(status);
+  };
+
+  const saveCurrentShiftStatus = async (status: ShiftStatus) => {
+    if (saving || loading || transitionLock.current) return;
+    if (!day?.selection || day.selection === 'all_day_bike') return;
+    if (!day.event?.managedByApp) {
+      setError('Le statut ne peut être modifié que pour un horaire créé avec cette application.');
+      return;
+    }
+
+    setSaving(day.selection);
+    setError(null);
+    try {
+      const title = day.selection === 'all_day_other' ? day.event.title : undefined;
+      await api.select(date, day.selection, title, status);
+      await transitionToDay(1);
+    } catch (reason) {
+      setError((reason as Error).message);
+    } finally {
+      setSaving(null);
+    }
   };
 
   const onPointerDown = (event: PointerEvent<HTMLElement>) => {
@@ -245,14 +283,14 @@ export default function App() {
       </header>
 
       <section className={`shift-grid ${loading && !day ? 'is-loading' : ''}`} aria-busy={loading || Boolean(saving)}>
-        <ShiftButton type="morning_short" active={day?.selection === 'morning_short'} saving={saving === 'morning_short'} onChoose={choose} />
-        <ShiftButton type="morning_long" active={day?.selection === 'morning_long'} saving={saving === 'morning_long'} onChoose={choose} />
-        <ShiftButton type="all_day_rh" active={day?.selection === 'all_day_rh'} saving={saving === 'all_day_rh'} onChoose={choose} />
-        <ShiftButton type="all_day_rc" active={day?.selection === 'all_day_rc'} saving={saving === 'all_day_rc'} onChoose={choose} />
-        <ShiftButton type="all_day_rf" active={day?.selection === 'all_day_rf'} saving={saving === 'all_day_rf'} onChoose={choose} />
-        <ShiftButton type="all_day_ca" active={day?.selection === 'all_day_ca'} saving={saving === 'all_day_ca'} onChoose={choose} />
-        <ShiftButton type="afternoon" active={day?.selection === 'afternoon'} saving={saving === 'afternoon'} onChoose={choose} />
-        <ShiftButton type="all_day_other" active={day?.selection === 'all_day_other'} saving={saving === 'all_day_other'} onChoose={choose} />
+        <ShiftButton type="morning_short" active={day?.selection === 'morning_short'} status={day?.selection === 'morning_short' ? day.status : null} saving={saving === 'morning_short'} onChoose={choose} />
+        <ShiftButton type="morning_long" active={day?.selection === 'morning_long'} status={day?.selection === 'morning_long' ? day.status : null} saving={saving === 'morning_long'} onChoose={choose} />
+        <ShiftButton type="all_day_rh" active={day?.selection === 'all_day_rh'} status={day?.selection === 'all_day_rh' ? day.status : null} saving={saving === 'all_day_rh'} onChoose={choose} />
+        <ShiftButton type="all_day_rc" active={day?.selection === 'all_day_rc'} status={day?.selection === 'all_day_rc' ? day.status : null} saving={saving === 'all_day_rc'} onChoose={choose} />
+        <ShiftButton type="all_day_rf" active={day?.selection === 'all_day_rf'} status={day?.selection === 'all_day_rf' ? day.status : null} saving={saving === 'all_day_rf'} onChoose={choose} />
+        <ShiftButton type="all_day_ca" active={day?.selection === 'all_day_ca'} status={day?.selection === 'all_day_ca' ? day.status : null} saving={saving === 'all_day_ca'} onChoose={choose} />
+        <ShiftButton type="afternoon" active={day?.selection === 'afternoon'} status={day?.selection === 'afternoon' ? day.status : null} saving={saving === 'afternoon'} onChoose={choose} />
+        <ShiftButton type="all_day_other" active={day?.selection === 'all_day_other'} status={day?.selection === 'all_day_other' ? day.status : null} saving={saving === 'all_day_other'} onChoose={choose} />
         <ShiftButton
           type="all_day_bike"
           active={Boolean(day?.bikeEvent)}
@@ -350,29 +388,63 @@ export default function App() {
 function ShiftButton({
   type,
   active,
+  status,
   saving,
   detail,
   onChoose,
 }: {
   type: ShiftType;
   active: boolean;
+  status?: ShiftStatus | null;
   saving: boolean;
   detail?: string;
-  onChoose: (type: ShiftType) => void;
+  onChoose: (type: ShiftType, status?: ShiftStatus) => void;
 }) {
   const copy = SHIFT_COPY[type];
+  if (type === 'all_day_bike') {
+    return (
+      <button
+        type="button"
+        className={`shift-card ${type} ${active ? 'active' : ''}`}
+        aria-pressed={active}
+        onClick={() => onChoose(type)}
+      >
+        <span className="shift-note">{copy.note}</span>
+        <strong>{copy.name}</strong>
+        <span className="shift-time">{detail || copy.time}</span>
+        <span className="selection-state">{saving ? 'Enregistrement…' : active ? '✓ Sélectionné' : 'Choisir'}</span>
+      </button>
+    );
+  }
+
+  const currentStatus = status ?? null;
+  const primaryStatus: ShiftStatus = currentStatus ?? 'provisional';
+  const alternateStatus: ShiftStatus = currentStatus === 'confirmed' ? 'provisional' : 'confirmed';
+  const tileStatus = currentStatus ?? 'undefined';
+  const statusLabel = primaryStatus === 'provisional' ? 'prévisionnel' : 'validé';
+  const alternateLabel = alternateStatus === 'provisional' ? 'prévisionnel' : 'validé';
   return (
-    <button
-      type="button"
-      className={`shift-card ${type} ${active ? 'active' : ''}`}
-      aria-pressed={active}
-      onClick={() => onChoose(type)}
-    >
+    <div className={`shift-card ${type} ${active ? 'active' : ''} ${tileStatus}`}>
       <span className="shift-note">{copy.note}</span>
       <strong>{copy.name}</strong>
       <span className="shift-time">{detail || copy.time}</span>
-      <span className="selection-state">{saving ? 'Enregistrement…' : active ? '✓ Sélectionné' : 'Choisir'}</span>
-    </button>
+      <span className="selection-state">
+        {saving ? 'Enregistrement…' : active ? currentStatus === 'provisional' ? 'Prévisionnel' : '✓ Validé' : 'Choisir'}
+      </span>
+      <button
+        type="button"
+        className="shift-action shift-main-action"
+        aria-label={`${active ? 'Conserver' : 'Choisir'} ${copy.name} ${statusLabel}`}
+        aria-pressed={active}
+        onClick={() => onChoose(type, primaryStatus)}
+      />
+      <button
+        type="button"
+        className="shift-action shift-alternate-action"
+        aria-label={`${active ? 'Passer' : 'Choisir'} ${copy.name} en ${alternateLabel}`}
+        onClick={() => onChoose(type, alternateStatus)}
+      />
+    </div>
   );
 }
 
@@ -392,6 +464,10 @@ function formatEventTime(value: string | null): string {
 
 function extractBikeDistance(title: string | null | undefined): string {
   return title?.match(/\d+(?:[.,]\d+)?/)?.[0].replace(',', '.') ?? '';
+}
+
+function stripProvisionalTitlePrefix(title: string | null | undefined): string {
+  return title?.trim().replace(/^\u2753\s*/u, '').trim() ?? '';
 }
 
 function waitForPageTransition(duration: number): Promise<void> {

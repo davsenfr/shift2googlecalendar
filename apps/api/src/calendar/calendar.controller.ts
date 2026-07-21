@@ -13,6 +13,6 @@ export class CalendarController {
 
   @Put(':date/shift')
   selectShift(@Param('date') date: string, @Body() body: SelectShiftDto) {
-    return this.calendar.selectShift(date, body.shift, body.title);
+    return this.calendar.selectShift(date, body.shift, body.title, body.status);
   }
 }

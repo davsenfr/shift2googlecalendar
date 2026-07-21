@@ -9,6 +9,8 @@ export type ShiftType =
   | 'all_day_other'
   | 'all_day_bike';
 
+export type ShiftStatus = 'provisional' | 'confirmed';
+
 export type AuthStatus = {
   configured: boolean;
   connected: boolean;
@@ -17,6 +19,7 @@ export type AuthStatus = {
 export type DayState = {
   date: string;
   selection: ShiftType | null;
+  status: ShiftStatus | null;
   event: CalendarEventState | null;
   bikeEvent: CalendarEventState | null;
   duplicateCount: number;
@@ -54,9 +57,9 @@ export const api = {
   authStatus: () => request<AuthStatus>('/auth/status'),
   day: (date: string, signal?: AbortSignal) =>
     request<DayState>(`/calendar/days/${date}`, { signal }),
-  select: (date: string, shift: ShiftType, title?: string) =>
+  select: (date: string, shift: ShiftType, title?: string, status?: ShiftStatus) =>
     request<DayState>(`/calendar/days/${date}/shift`, {
       method: 'PUT',
-      body: JSON.stringify({ shift, title }),
+      body: JSON.stringify({ shift, title, status }),
     }),
 };
