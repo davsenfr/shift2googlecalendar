@@ -265,6 +265,15 @@ export default function App() {
   }
 
   const relative = relativeDate(date);
+  const activeHeadingShift = day?.selection;
+  const activeHeadingTitle = activeHeadingShift
+    ? activeHeadingShift === 'all_day_other'
+      ? stripProvisionalTitlePrefix(day?.event?.title) || SHIFT_COPY[activeHeadingShift].name
+      : SHIFT_COPY[activeHeadingShift].name
+    : null;
+  const headingBadgeLabel = activeHeadingTitle
+    ? relative ? `${relative} ${activeHeadingTitle}` : activeHeadingTitle
+    : relative ?? 'Pas de shift';
   return (
     <main
       className={`schedule page-${pageTransition} page-${pageDirection}`}
@@ -275,7 +284,9 @@ export default function App() {
       <header className="title-bar">
         <button className="arrow" onClick={() => moveWithTransition(-1)} aria-label="Jour précédent">‹</button>
         <div className="date-heading" aria-live="polite">
-          <span>{relative ?? 'Date choisie'}</span>
+          <span className={activeHeadingShift ? `active-event ${activeHeadingShift} ${day?.status ?? ''}` : undefined}>
+            {headingBadgeLabel}
+          </span>
           <h1>{formatDateTitle(date)}</h1>
         </div>
         <button className="arrow" onClick={() => moveWithTransition(1)} aria-label="Jour suivant">›</button>

@@ -63,6 +63,30 @@ button { -webkit-tap-highlight-color: transparent; }
   text-transform: uppercase;
   opacity: .68;
 }
+.date-heading span.active-event {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: #fffdf5;
+  opacity: 1;
+  background: var(--active-event-color);
+  transition: background .18s ease;
+}
+.date-heading span.active-event.morning_short {
+  --active-event-color: #33b679;
+  color: #123524;
+}
+.date-heading span.active-event.morning_long { --active-event-color: #0b8043; }
+.date-heading span.active-event.all_day_rh,
+.date-heading span.active-event.all_day_rc,
+.date-heading span.active-event.all_day_rf,
+.date-heading span.active-event.all_day_ca { --active-event-color: #d93025; }
+.date-heading span.active-event.afternoon { --active-event-color: #039be5; }
+.date-heading span.active-event.all_day_other { --active-event-color: #8e24aa; }
+.date-heading span.active-event.provisional {
+  --active-event-color: #929892;
+  color: #fffdf5;
+}
 
 .date-heading h1 {
   font-family: 'Fraunces', Georgia, serif;
