@@ -3,14 +3,17 @@ import { ConfigService } from '@nestjs/config';
 import { calendar_v3, google } from 'googleapis';
 import { DateTime } from 'luxon';
 import { GoogleAuthService } from '../auth/google-auth.service';
-import { SHIFTS, SHIFT_TYPES, ShiftDefinition, ShiftType } from './shifts';
+import { SHIFTS, SHIFT_TYPES, ShiftDefinition, ShiftStatus, ShiftType } from './shifts';
 
 const APP_MARKER_KEY = 'shiftToGc';
 const APP_MARKER_VALUE = 'v1';
+const GOOGLE_GRAY_COLOR_ID = '8';
+const PROVISIONAL_TITLE_PREFIX = '❓';
 
 export type DayState = {
   date: string;
   selection: ShiftType | null;
+  status: ShiftStatus | null;
   event: CalendarEventState | null;
   bikeEvent: CalendarEventState | null;
   duplicateCount: number;
@@ -47,12 +50,18 @@ export class CalendarService {
     return this.toDayState(date, events);
   }
 
-  async selectShift(date: string, shiftType: ShiftType, customTitle?: string): Promise<DayState> {
+  async selectShift(
+    date: string,
+    shiftType: ShiftType,
+    customTitle?: string,
+    status: ShiftStatus = 'confirmed',
+  ): Promise<DayState> {
     const day = this.parseDate(date);
     const calendar = await this.getCalendarClient();
     const events = await this.listEvents(calendar, day);
     const shift = SHIFTS[shiftType];
-    const resource = this.eventResource(date, shift, customTitle);
+    const effectiveStatus = shiftType === 'all_day_bike' ? 'confirmed' : status;
+    const resource = this.eventResource(date, shift, customTitle, effectiveStatus);
     const managedEvent = events.find((event) =>
       this.isManaged(event) && this.isBikeEvent(event) === (shiftType === 'all_day_bike'),
     );
@@ -109,6 +118,7 @@ export class CalendarService {
     return {
       date,
       selection,
+      status: event ? this.getShiftStatus(event) : null,
       event: this.toEventState(event, selection),
       bikeEvent: this.toEventState(bikeEvent, bikeEvent ? this.matchShift(bikeEvent) : null),
       duplicateCount:
@@ -144,13 +154,20 @@ export class CalendarService {
     return event.extendedProperties?.private?.[APP_MARKER_KEY] === APP_MARKER_VALUE;
   }
 
+  private getShiftStatus(event: calendar_v3.Schema$Event): ShiftStatus {
+    return event.extendedProperties?.private?.shiftStatus === 'provisional'
+      ? 'provisional'
+      : 'confirmed';
+  }
+
   private isBikeEvent(event: calendar_v3.Schema$Event): boolean {
     return event.extendedProperties?.private?.shiftType === 'all_day_bike' ||
       this.matchShift(event) === 'all_day_bike';
   }
 
   private matchShift(event: calendar_v3.Schema$Event): ShiftType | null {
-    const normalizedTitle = (event.summary ?? '').trim().toLocaleLowerCase('fr');
+    const normalizedTitle = this.stripProvisionalTitlePrefix(event.summary ?? '')
+      .toLocaleLowerCase('fr');
     const managedShiftType = event.extendedProperties?.private?.shiftType;
 
     if (
@@ -195,8 +212,11 @@ export class CalendarService {
     date: string,
     shift: ShiftDefinition,
     customTitle?: string,
+    status: ShiftStatus = 'confirmed',
   ): calendar_v3.Schema$Event {
-    const customTitleValue = customTitle?.trim();
+    const customTitleValue = customTitle
+      ? this.stripProvisionalTitlePrefix(customTitle)
+      : undefined;
     if (shift.editableTitle && !customTitleValue) {
       throw new BadRequestException('Le titre de l’événement est obligatoire.');
     }
@@ -220,16 +240,21 @@ export class CalendarService {
           },
         };
 
+    const eventTitle = shift.editableTitle ? title as string : shift.title;
+
     return {
-      summary: shift.editableTitle ? title : shift.title,
+      summary: status === 'provisional'
+        ? `${PROVISIONAL_TITLE_PREFIX} ${eventTitle}`
+        : eventTitle,
       description: 'Créé avec Shift to Google Calendar',
-      colorId: shift.googleColorId,
+      colorId: status === 'provisional' ? GOOGLE_GRAY_COLOR_ID : shift.googleColorId,
       ...timing,
       extendedProperties: {
         private: {
           [APP_MARKER_KEY]: APP_MARKER_VALUE,
           shiftDate: date,
           shiftType: shift.type,
+          shiftStatus: status,
         },
       },
     };
@@ -239,6 +264,10 @@ export class CalendarService {
     const value = DateTime.fromISO(`${date}T${time}`, { zone: this.timeZone });
     if (!value.isValid) throw new BadRequestException('Date ou fuseau horaire invalide.');
     return value.toISO({ suppressMilliseconds: true }) as string;
+  }
+
+  private stripProvisionalTitlePrefix(title: string): string {
+    return title.trim().replace(/^\u2753\s*/u, '').trim();
   }
 
   private parseDate(date: string): DateTime {

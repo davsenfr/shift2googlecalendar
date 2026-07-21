@@ -11,6 +11,9 @@ export const SHIFT_TYPES = [
 ] as const;
 export type ShiftType = (typeof SHIFT_TYPES)[number];
 
+export const SHIFT_STATUSES = ['provisional', 'confirmed'] as const;
+export type ShiftStatus = (typeof SHIFT_STATUSES)[number];
+
 export type ShiftDefinition = {
   type: ShiftType;
   title: string;

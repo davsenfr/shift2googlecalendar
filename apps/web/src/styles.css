@@ -29,6 +29,22 @@ button { -webkit-tap-highlight-color: transparent; }
   touch-action: pan-y;
   user-select: none;
 }
+.schedule.page-leaving.page-forward {
+  pointer-events: none;
+  animation: page-leave-forward 220ms cubic-bezier(.4, 0, 1, 1) both;
+}
+.schedule.page-entering.page-forward {
+  pointer-events: none;
+  animation: page-enter-forward 320ms cubic-bezier(.16, 1, .3, 1) both;
+}
+.schedule.page-leaving.page-backward {
+  pointer-events: none;
+  animation: page-leave-backward 220ms cubic-bezier(.4, 0, 1, 1) both;
+}
+.schedule.page-entering.page-backward {
+  pointer-events: none;
+  animation: page-enter-backward 320ms cubic-bezier(.16, 1, .3, 1) both;
+}
 
 .title-bar {
   color: #f8f4e9;
@@ -47,6 +63,30 @@ button { -webkit-tap-highlight-color: transparent; }
   text-transform: uppercase;
   opacity: .68;
 }
+.date-heading span.active-event {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: #fffdf5;
+  opacity: 1;
+  background: var(--active-event-color);
+  transition: background .18s ease;
+}
+.date-heading span.active-event.morning_short {
+  --active-event-color: #33b679;
+  color: #123524;
+}
+.date-heading span.active-event.morning_long { --active-event-color: #0b8043; }
+.date-heading span.active-event.all_day_rh,
+.date-heading span.active-event.all_day_rc,
+.date-heading span.active-event.all_day_rf,
+.date-heading span.active-event.all_day_ca { --active-event-color: #d93025; }
+.date-heading span.active-event.afternoon { --active-event-color: #039be5; }
+.date-heading span.active-event.all_day_other { --active-event-color: #8e24aa; }
+.date-heading span.active-event.provisional {
+  --active-event-color: #929892;
+  color: #fffdf5;
+}
 
 .date-heading h1 {
   font-family: 'Fraunces', Georgia, serif;
@@ -58,7 +98,6 @@ button { -webkit-tap-highlight-color: transparent; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
 .arrow {
   height: 48px;
   border: 0;
@@ -94,8 +133,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .shift-card {
   --shift-background: #dfd9c9;
   --shift-color: #172019;
-  --shift-active-background: #376348;
-  --shift-active-color: #fffdf5;
+  --tile-color: var(--shift-background);
   flex: 1 1 0;
   min-width: 0;
   min-height: 0;
@@ -113,14 +151,12 @@ button { -webkit-tap-highlight-color: transparent; }
   transition: background .18s, color .18s, transform .1s;
 }
 .shift-card.morning_short {
-  --shift-background: #b7e1cd;
+  --shift-background: #33b679;
   --shift-color: #123524;
-  --shift-active-background: #33b679;
 }
 .shift-card.morning_long {
   --shift-background: #0b8043;
   --shift-color: #fffdf5;
-  --shift-active-background: #075f31;
 }
 .shift-card.all_day_rh,
 .shift-card.all_day_rc,
@@ -128,35 +164,91 @@ button { -webkit-tap-highlight-color: transparent; }
 .shift-card.all_day_ca {
   --shift-background: #d93025;
   --shift-color: #fffdf5;
-  --shift-active-background: #a50e0e;
 }
 .shift-card.afternoon {
   --shift-background: #039be5;
   --shift-color: #fffdf5;
-  --shift-active-background: #0277bd;
 }
 .shift-card.all_day_other {
   --shift-background: #8e24aa;
   --shift-color: #fffdf5;
-  --shift-active-background: #6a1b9a;
 }
 .shift-card.all_day_bike {
   --shift-background: #f6c026;
   --shift-color: #332600;
-  --shift-active-background: #dfa900;
-  --shift-active-color: #332600;
   grid-column: 1 / -1;
   padding-bottom: max(12px, env(safe-area-inset-bottom));
 }
 .shift-card:active { transform: scale(.99); }
 .shift-card.active {
-  color: var(--shift-active-color);
-  background: var(--shift-active-background);
+  color: var(--shift-color);
+  background: var(--shift-background);
 }
+.shift-card.provisional,
+.shift-card.confirmed,
+.shift-card.undefined {
+  color: #fffdf5;
+  background: #929892;
+}
+.shift-card.provisional::before,
+.shift-card.confirmed::before,
+.shift-card.undefined::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background: var(--tile-color);
+  clip-path: polygon(0 0, 50% 0, 0 80%);
+  transition: clip-path .22s ease;
+}
+.shift-card.confirmed::before {
+  clip-path: polygon(0 0, 100% 0, 100% 40%, 50% 100%, 0 100%);
+}
+.shift-card.undefined::before {
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+.shift-card > strong,
+.shift-card > span {
+  z-index: 1;
+  pointer-events: none;
+}
+.shift-action {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.shift-main-action {
+  clip-path: polygon(50% 0, 100% 0, 100% 100%, 0 100%, 0 80%);
+}
+.shift-alternate-action {
+  clip-path: polygon(0 0, 50% 0, 0 80%);
+}
+.shift-card.confirmed .shift-main-action {
+  clip-path: polygon(0 0, 100% 0, 100% 40%, 50% 100%, 0 100%);
+}
+.shift-card.confirmed .shift-alternate-action {
+  clip-path: polygon(100% 40%, 100% 100%, 50% 100%);
+}
+.shift-card.undefined .shift-main-action {
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+.shift-card.undefined .shift-alternate-action {
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+.shift-action:focus-visible { background: rgba(255, 255, 255, .18); }
+.shift-card:has(.shift-action:active) { transform: scale(.99); }
+.shift-card.all_day_bike::before { content: none; }
+.shift-card.all_day_bike > strong,
+.shift-card.all_day_bike > span { pointer-events: none; }
 .shift-card strong {
   font-family: 'Fraunces', Georgia, serif;
   font-size: clamp(1.35rem, 4dvh, 2.6rem);
   line-height: 1;
+  text-shadow: 0 1px 15px rgba(0, 0, 0, .80);
 }
 .shift-time { font-size: clamp(.68rem, 2dvh, .9rem); margin-top: 5px; font-weight: 600; }
 .shift-note {
@@ -268,6 +360,18 @@ button { -webkit-tap-highlight-color: transparent; }
 .centered-state p { max-width: 460px; }
 
 @keyframes pulse { 50% { opacity: .25; transform: scale(.8); } }
+@keyframes page-leave-forward {
+  to { opacity: 0; transform: translate3d(-9%, 0, 0) scale(.985); }
+}
+@keyframes page-enter-forward {
+  from { opacity: 0; transform: translate3d(9%, 0, 0) scale(.985); }
+}
+@keyframes page-leave-backward {
+  to { opacity: 0; transform: translate3d(9%, 0, 0) scale(.985); }
+}
+@keyframes page-enter-backward {
+  from { opacity: 0; transform: translate3d(-9%, 0, 0) scale(.985); }
+}
 
 @media (min-width: 760px) {
   body { display: grid; place-items: center; background: #d8d4ca; }
