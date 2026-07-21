@@ -3,18 +3,23 @@ import { api, API_BASE, AuthStatus, DayState, ShiftType } from './api';
 import { addDays, formatDateTitle, relativeDate, today } from './date';
 
 const SHIFT_COPY: Record<ShiftType, { name: string; time: string; note: string }> = {
-  morning_short: { name: 'Matin', time: '6h45 — 13h45', note: 'Court' },
-  morning_long: { name: 'Matin', time: '6h45 — 14h45', note: 'Long' },
-  all_day_rh: { name: 'RH', time: '', note: 'Journée' },
-  all_day_rc: { name: 'RC', time: '', note: 'Journée' },
-  all_day_rf: { name: 'RF', time: '', note: 'Journée' },
-  all_day_ca: { name: 'CA', time: '', note: 'Journée' },
+  morning_short: { name: 'Matin', time: '6h45 — 13h45', note: '' },
+  morning_long: { name: 'Matin', time: '6h45 — 14h45', note: '' },
+  all_day_rh: { name: 'RH', time: '', note: '' },
+  all_day_rc: { name: 'RC', time: '', note: '' },
+  all_day_rf: { name: 'RF', time: '', note: '' },
+  all_day_ca: { name: 'CA', time: '', note: '' },
   afternoon: { name: 'Après midi', time: '13h30 — 21h30', note: '' },
   all_day_other: { name: 'Autres', time: '', note: '' },
   all_day_bike: { name: '🚲 Vélo', time: '', note: 'Kilométrage' },
 };
 
 type DragStart = { x: number; y: number; pointerId: number } | null;
+type PageTransition = 'idle' | 'leaving' | 'entering';
+type PageDirection = 'forward' | 'backward';
+
+const PAGE_EXIT_DURATION_MS = 220;
+const PAGE_ENTER_DURATION_MS = 320;
 
 export default function App() {
   const [auth, setAuth] = useState<AuthStatus | null>(null);
@@ -27,7 +32,10 @@ export default function App() {
   const [otherTitle, setOtherTitle] = useState('Autres');
   const [editingBike, setEditingBike] = useState(false);
   const [bikeKilometers, setBikeKilometers] = useState('');
+  const [pageTransition, setPageTransition] = useState<PageTransition>('idle');
+  const [pageDirection, setPageDirection] = useState<PageDirection>('forward');
   const dragStart = useRef<DragStart>(null);
+  const transitionLock = useRef(false);
 
   useEffect(() => {
     api.authStatus()
@@ -72,8 +80,25 @@ export default function App() {
     };
   }, [auth?.connected, refresh, saving]);
 
+  const transitionToDay = async (amount: number) => {
+    if (transitionLock.current) return;
+    transitionLock.current = true;
+    setPageDirection(amount > 0 ? 'forward' : 'backward');
+    try {
+      setPageTransition('leaving');
+      await waitForPageTransition(PAGE_EXIT_DURATION_MS);
+      setDay(null);
+      setDate((current) => addDays(current, amount));
+      setPageTransition('entering');
+      await waitForPageTransition(PAGE_ENTER_DURATION_MS);
+    } finally {
+      setPageTransition('idle');
+      transitionLock.current = false;
+    }
+  };
+
   const choose = async (shift: ShiftType) => {
-    if (saving || loading) return;
+    if (saving || loading || transitionLock.current) return;
     if (shift === 'all_day_other') {
       setOtherTitle(day?.selection === shift ? day.event?.title || 'Autres' : 'Autres');
       setError(null);
@@ -91,8 +116,7 @@ export default function App() {
     setError(null);
     try {
       await api.select(date, shift);
-      setDay(null);
-      setDate((current) => addDays(current, 1));
+      await transitionToDay(1);
     } catch (reason) {
       setError((reason as Error).message);
     } finally {
@@ -113,8 +137,7 @@ export default function App() {
       if (isEditing) {
         setDay(state);
       } else {
-        setDay(null);
-        setDate((current) => addDays(current, 1));
+        await transitionToDay(1);
       }
     } catch (reason) {
       setError((reason as Error).message);
@@ -140,8 +163,7 @@ export default function App() {
       if (isEditing) {
         setDay(state);
       } else {
-        setDay(null);
-        setDate((current) => addDays(current, 1));
+        await transitionToDay(1);
       }
     } catch (reason) {
       setError((reason as Error).message);
@@ -151,9 +173,14 @@ export default function App() {
   };
 
   const move = (amount: number) => {
-    if (saving) return;
+    if (saving || transitionLock.current) return;
     setDay(null);
     setDate((current) => addDays(current, amount));
+  };
+
+  const moveWithTransition = (amount: number) => {
+    if (saving) return;
+    void transitionToDay(amount);
   };
 
   const onPointerDown = (event: PointerEvent<HTMLElement>) => {
@@ -202,18 +229,18 @@ export default function App() {
   const relative = relativeDate(date);
   return (
     <main
-      className="schedule"
+      className={`schedule page-${pageTransition} page-${pageDirection}`}
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
       onPointerCancel={() => (dragStart.current = null)}
     >
       <header className="title-bar">
-        <button className="arrow" onClick={() => move(-1)} aria-label="Jour précédent">‹</button>
+        <button className="arrow" onClick={() => moveWithTransition(-1)} aria-label="Jour précédent">‹</button>
         <div className="date-heading" aria-live="polite">
           <span>{relative ?? 'Date choisie'}</span>
           <h1>{formatDateTitle(date)}</h1>
         </div>
-        <button className="arrow" onClick={() => move(1)} aria-label="Jour suivant">›</button>
+        <button className="arrow" onClick={() => moveWithTransition(1)} aria-label="Jour suivant">›</button>
         <span className={`sync-dot ${loading ? 'syncing' : ''}`} aria-label={loading ? 'Synchronisation en cours' : 'Synchronisé'} />
       </header>
 
@@ -365,4 +392,9 @@ function formatEventTime(value: string | null): string {
 
 function extractBikeDistance(title: string | null | undefined): string {
   return title?.match(/\d+(?:[.,]\d+)?/)?.[0].replace(',', '.') ?? '';
+}
+
+function waitForPageTransition(duration: number): Promise<void> {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return Promise.resolve();
+  return new Promise((resolve) => window.setTimeout(resolve, duration));
 }

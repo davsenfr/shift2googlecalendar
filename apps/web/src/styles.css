@@ -29,6 +29,22 @@ button { -webkit-tap-highlight-color: transparent; }
   touch-action: pan-y;
   user-select: none;
 }
+.schedule.page-leaving.page-forward {
+  pointer-events: none;
+  animation: page-leave-forward 220ms cubic-bezier(.4, 0, 1, 1) both;
+}
+.schedule.page-entering.page-forward {
+  pointer-events: none;
+  animation: page-enter-forward 320ms cubic-bezier(.16, 1, .3, 1) both;
+}
+.schedule.page-leaving.page-backward {
+  pointer-events: none;
+  animation: page-leave-backward 220ms cubic-bezier(.4, 0, 1, 1) both;
+}
+.schedule.page-entering.page-backward {
+  pointer-events: none;
+  animation: page-enter-backward 320ms cubic-bezier(.16, 1, .3, 1) both;
+}
 
 .title-bar {
   color: #f8f4e9;
@@ -268,6 +284,18 @@ button { -webkit-tap-highlight-color: transparent; }
 .centered-state p { max-width: 460px; }
 
 @keyframes pulse { 50% { opacity: .25; transform: scale(.8); } }
+@keyframes page-leave-forward {
+  to { opacity: 0; transform: translate3d(-9%, 0, 0) scale(.985); }
+}
+@keyframes page-enter-forward {
+  from { opacity: 0; transform: translate3d(9%, 0, 0) scale(.985); }
+}
+@keyframes page-leave-backward {
+  to { opacity: 0; transform: translate3d(9%, 0, 0) scale(.985); }
+}
+@keyframes page-enter-backward {
+  from { opacity: 0; transform: translate3d(-9%, 0, 0) scale(.985); }
+}
 
 @media (min-width: 760px) {
   body { display: grid; place-items: center; background: #d8d4ca; }
