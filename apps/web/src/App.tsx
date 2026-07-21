@@ -341,7 +341,7 @@ function ShiftButton({
       aria-pressed={active}
       onClick={() => onChoose(type)}
     >
-      <span className="shift-note">{copy.note || 'Service'}</span>
+      <span className="shift-note">{copy.note}</span>
       <strong>{copy.name}</strong>
       <span className="shift-time">{detail || copy.time}</span>
       <span className="selection-state">{saving ? 'Enregistrement…' : active ? '✓ Sélectionné' : 'Choisir'}</span>
