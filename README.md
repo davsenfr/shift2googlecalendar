@@ -51,6 +51,70 @@ npm run dev
 
 The same `.env` values and local URLs apply.
 
+## Tests
+
+The project uses [Vitest](https://vitest.dev/) in both workspaces. API tests run in
+Node.js and replace Google Calendar with mocks, so they never modify a real calendar.
+Web tests use Testing Library and `jsdom` to render React components in a simulated
+browser.
+
+Install the dependencies once from the repository root:
+
+```bash
+npm ci
+```
+
+Run every API and web test once:
+
+```bash
+npm test
+```
+
+Run only one workspace:
+
+```bash
+npm run test --workspace=@shift-to-gc/api
+npm run test --workspace=@shift-to-gc/web
+```
+
+During development, watch mode keeps Vitest running and reruns the relevant tests
+after each file change:
+
+```bash
+npm run test:watch --workspace=@shift-to-gc/api
+npm run test:watch --workspace=@shift-to-gc/web
+```
+
+Press `q` to leave watch mode. A test is organized around three basic functions:
+
+- `describe(...)` groups related behavior.
+- `it(...)` defines one expected behavior.
+- `expect(...)` verifies the result.
+
+If Node.js is not installed locally, rebuild the development images after adding the
+test dependencies, then run each suite inside Docker:
+
+```bash
+docker compose build backend frontend
+docker compose run --rm --no-deps backend npm test
+docker compose run --rm --no-deps frontend npm test
+```
+
+The current test suites are:
+
+- `apps/api/test/calendar.service.spec.ts`: unit tests for adopting and updating an
+  external Google Calendar event, including rejection of an unknown event ID.
+- `apps/web/src/App.test.tsx`: component tests for the relative-day badge and the
+  behavior when Google does not confirm an update.
+
+Before committing a change, a useful complete check is:
+
+```bash
+npm test
+npm run typecheck
+npm run build
+```
+
 ## Google Calendar event color mapping
 
 Google Calendar event colors use the `colorId` values from the
