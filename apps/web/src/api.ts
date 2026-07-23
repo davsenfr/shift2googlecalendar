@@ -57,9 +57,15 @@ export const api = {
   authStatus: () => request<AuthStatus>('/auth/status'),
   day: (date: string, signal?: AbortSignal) =>
     request<DayState>(`/calendar/days/${date}`, { signal }),
-  select: (date: string, shift: ShiftType, title?: string, status?: ShiftStatus) =>
+  select: (
+    date: string,
+    shift: ShiftType,
+    title?: string,
+    status?: ShiftStatus,
+    eventId?: string,
+  ) =>
     request<DayState>(`/calendar/days/${date}/shift`, {
       method: 'PUT',
-      body: JSON.stringify({ shift, title, status }),
+      body: JSON.stringify({ shift, title, status, eventId }),
     }),
 };

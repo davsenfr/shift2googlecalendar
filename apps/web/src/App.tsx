@@ -203,16 +203,28 @@ export default function App() {
   const saveCurrentShiftStatus = async (status: ShiftStatus) => {
     if (saving || loading || transitionLock.current) return;
     if (!day?.selection || day.selection === 'all_day_bike') return;
-    if (!day.event?.managedByApp) {
-      setError('Le statut ne peut être modifié que pour un horaire créé avec cette application.');
-      return;
-    }
 
     setSaving(day.selection);
     setError(null);
     try {
-      const title = day.selection === 'all_day_other' ? day.event.title : undefined;
-      await api.select(date, day.selection, title, status);
+      const title = day.selection === 'all_day_other' ? day.event?.title : undefined;
+      const state = await api.select(
+        date,
+        day.selection,
+        title,
+        status,
+        day.event?.id ?? undefined,
+      );
+      if (
+        state.selection !== day.selection ||
+        state.status !== status ||
+        !state.event?.managedByApp
+      ) {
+        setDay(state);
+        throw new Error(
+          'Google Calendar n’a pas confirmé la modification de cet horaire.',
+        );
+      }
       await transitionToDay(1);
     } catch (reason) {
       setError((reason as Error).message);

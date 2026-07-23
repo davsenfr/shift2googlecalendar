@@ -55,6 +55,7 @@ export class CalendarService {
     shiftType: ShiftType,
     customTitle?: string,
     status: ShiftStatus = 'confirmed',
+    eventId?: string,
   ): Promise<DayState> {
     const day = this.parseDate(date);
     const calendar = await this.getCalendarClient();
@@ -68,14 +69,28 @@ export class CalendarService {
     const matchingUnmanagedEvent = events.find(
       (event) => !this.isManaged(event) && this.matchShift(event) === shiftType,
     );
+    const requestedEvent = eventId
+      ? events.find((event) => event.id === eventId)
+      : undefined;
+    if (eventId && !requestedEvent) {
+      throw new BadRequestException(
+        'L’événement Google Calendar à modifier est introuvable pour cette date.',
+      );
+    }
+    if (requestedEvent && this.matchShift(requestedEvent) !== shiftType) {
+      throw new BadRequestException(
+        'L’événement Google Calendar ne correspond plus à l’horaire affiché.',
+      );
+    }
+    const eventToUpdate = requestedEvent ?? managedEvent ?? matchingUnmanagedEvent;
 
-    if (managedEvent?.id) {
+    if (eventToUpdate?.id) {
       await calendar.events.update({
         calendarId: this.calendarId,
-        eventId: managedEvent.id,
+        eventId: eventToUpdate.id,
         requestBody: resource,
       });
-    } else if (!matchingUnmanagedEvent) {
+    } else {
       await calendar.events.insert({
         calendarId: this.calendarId,
         requestBody: resource,
