@@ -56,6 +56,12 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 
 .date-heading { text-align: center; min-width: 0; }
+.date-heading-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+}
 .date-heading span, .eyebrow {
   font-size: .68rem;
   font-weight: 700;

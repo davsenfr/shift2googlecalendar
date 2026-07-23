@@ -283,9 +283,6 @@ export default function App() {
       ? stripProvisionalTitlePrefix(day?.event?.title) || SHIFT_COPY[activeHeadingShift].name
       : SHIFT_COPY[activeHeadingShift].name
     : null;
-  const headingBadgeLabel = activeHeadingTitle
-    ? relative ? `${relative} ${activeHeadingTitle}` : activeHeadingTitle
-    : relative ?? 'Pas de shift';
   return (
     <main
       className={`schedule page-${pageTransition} page-${pageDirection}`}
@@ -296,9 +293,15 @@ export default function App() {
       <header className="title-bar">
         <button className="arrow" onClick={() => moveWithTransition(-1)} aria-label="Jour précédent">‹</button>
         <div className="date-heading" aria-live="polite">
-          <span className={activeHeadingShift ? `active-event ${activeHeadingShift} ${day?.status ?? ''}` : undefined}>
-            {headingBadgeLabel}
-          </span>
+          <div className="date-heading-label">
+            {relative && <span>{relative}</span>}
+            {activeHeadingTitle && (
+              <span className={`active-event ${activeHeadingShift} ${day?.status ?? ''}`}>
+                {activeHeadingTitle}
+              </span>
+            )}
+            {!relative && !activeHeadingTitle && <span>Pas de shift</span>}
+          </div>
           <h1>{formatDateTitle(date)}</h1>
         </div>
         <button className="arrow" onClick={() => moveWithTransition(1)} aria-label="Jour suivant">›</button>
