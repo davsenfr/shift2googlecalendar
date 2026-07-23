@@ -203,16 +203,28 @@ export default function App() {
   const saveCurrentShiftStatus = async (status: ShiftStatus) => {
     if (saving || loading || transitionLock.current) return;
     if (!day?.selection || day.selection === 'all_day_bike') return;
-    if (!day.event?.managedByApp) {
-      setError('Le statut ne peut être modifié que pour un horaire créé avec cette application.');
-      return;
-    }
 
     setSaving(day.selection);
     setError(null);
     try {
-      const title = day.selection === 'all_day_other' ? day.event.title : undefined;
-      await api.select(date, day.selection, title, status);
+      const title = day.selection === 'all_day_other' ? day.event?.title : undefined;
+      const state = await api.select(
+        date,
+        day.selection,
+        title,
+        status,
+        day.event?.id ?? undefined,
+      );
+      if (
+        state.selection !== day.selection ||
+        state.status !== status ||
+        !state.event?.managedByApp
+      ) {
+        setDay(state);
+        throw new Error(
+          'Google Calendar n’a pas confirmé la modification de cet horaire.',
+        );
+      }
       await transitionToDay(1);
     } catch (reason) {
       setError((reason as Error).message);
@@ -271,9 +283,6 @@ export default function App() {
       ? stripProvisionalTitlePrefix(day?.event?.title) || SHIFT_COPY[activeHeadingShift].name
       : SHIFT_COPY[activeHeadingShift].name
     : null;
-  const headingBadgeLabel = activeHeadingTitle
-    ? relative ? `${relative} ${activeHeadingTitle}` : activeHeadingTitle
-    : relative ?? 'Pas de shift';
   return (
     <main
       className={`schedule page-${pageTransition} page-${pageDirection}`}
@@ -284,9 +293,15 @@ export default function App() {
       <header className="title-bar">
         <button className="arrow" onClick={() => moveWithTransition(-1)} aria-label="Jour précédent">‹</button>
         <div className="date-heading" aria-live="polite">
-          <span className={activeHeadingShift ? `active-event ${activeHeadingShift} ${day?.status ?? ''}` : undefined}>
-            {headingBadgeLabel}
-          </span>
+          <div className="date-heading-label">
+            {relative && <span>{relative}</span>}
+            {activeHeadingTitle && (
+              <span className={`active-event ${activeHeadingShift} ${day?.status ?? ''}`}>
+                {activeHeadingTitle}
+              </span>
+            )}
+            {!relative && !activeHeadingTitle && <span>Pas de shift</span>}
+          </div>
           <h1>{formatDateTitle(date)}</h1>
         </div>
         <button className="arrow" onClick={() => moveWithTransition(1)} aria-label="Jour suivant">›</button>

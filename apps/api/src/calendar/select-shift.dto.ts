@@ -13,4 +13,9 @@ export class SelectShiftDto {
   @IsOptional()
   @IsIn(SHIFT_STATUSES)
   status?: ShiftStatus;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1024)
+  eventId?: string;
 }

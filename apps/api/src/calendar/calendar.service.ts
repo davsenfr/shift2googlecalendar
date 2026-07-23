@@ -7,7 +7,7 @@ import { SHIFTS, SHIFT_TYPES, ShiftDefinition, ShiftStatus, ShiftType } from './
 
 const APP_MARKER_KEY = 'shiftToGc';
 const APP_MARKER_VALUE = 'v1';
-const GOOGLE_GRAY_COLOR_ID = '8';
+const PROVISIONAL_GOOGLE_COLOR_ID = '8';
 const PROVISIONAL_TITLE_PREFIX = '❓';
 
 export type DayState = {
@@ -55,6 +55,7 @@ export class CalendarService {
     shiftType: ShiftType,
     customTitle?: string,
     status: ShiftStatus = 'confirmed',
+    eventId?: string,
   ): Promise<DayState> {
     const day = this.parseDate(date);
     const calendar = await this.getCalendarClient();
@@ -68,14 +69,28 @@ export class CalendarService {
     const matchingUnmanagedEvent = events.find(
       (event) => !this.isManaged(event) && this.matchShift(event) === shiftType,
     );
+    const requestedEvent = eventId
+      ? events.find((event) => event.id === eventId)
+      : undefined;
+    if (eventId && !requestedEvent) {
+      throw new BadRequestException(
+        'L’événement Google Calendar à modifier est introuvable pour cette date.',
+      );
+    }
+    if (requestedEvent && this.matchShift(requestedEvent) !== shiftType) {
+      throw new BadRequestException(
+        'L’événement Google Calendar ne correspond plus à l’horaire affiché.',
+      );
+    }
+    const eventToUpdate = requestedEvent ?? managedEvent ?? matchingUnmanagedEvent;
 
-    if (managedEvent?.id) {
+    if (eventToUpdate?.id) {
       await calendar.events.update({
         calendarId: this.calendarId,
-        eventId: managedEvent.id,
+        eventId: eventToUpdate.id,
         requestBody: resource,
       });
-    } else if (!matchingUnmanagedEvent) {
+    } else {
       await calendar.events.insert({
         calendarId: this.calendarId,
         requestBody: resource,
@@ -155,7 +170,7 @@ export class CalendarService {
   }
 
   private getShiftStatus(event: calendar_v3.Schema$Event): ShiftStatus {
-    return event.extendedProperties?.private?.shiftStatus === 'provisional'
+    return event.colorId === PROVISIONAL_GOOGLE_COLOR_ID
       ? 'provisional'
       : 'confirmed';
   }
@@ -166,8 +181,7 @@ export class CalendarService {
   }
 
   private matchShift(event: calendar_v3.Schema$Event): ShiftType | null {
-    const normalizedTitle = this.stripProvisionalTitlePrefix(event.summary ?? '')
-      .toLocaleLowerCase('fr');
+    const normalizedTitle = this.stripProvisionalTitlePrefix(event.summary ?? '');
     const managedShiftType = event.extendedProperties?.private?.shiftType;
 
     if (
@@ -185,7 +199,7 @@ export class CalendarService {
         if (
           event.start?.date &&
           event.end?.date &&
-          shift.title.toLocaleLowerCase('fr') === normalizedTitle
+          shift.titleMatch.test(normalizedTitle)
         ) {
           return shift.type;
         }
@@ -200,7 +214,7 @@ export class CalendarService {
       if (
         shift.start === start &&
         shift.end === end &&
-        (this.isManaged(event) || shift.title.toLocaleLowerCase('fr') === normalizedTitle)
+        (this.isManaged(event) || shift.titleMatch.test(normalizedTitle))
       ) {
         return shift.type;
       }
@@ -247,7 +261,7 @@ export class CalendarService {
         ? `${PROVISIONAL_TITLE_PREFIX} ${eventTitle}`
         : eventTitle,
       description: 'Créé avec Shift to Google Calendar',
-      colorId: status === 'provisional' ? GOOGLE_GRAY_COLOR_ID : shift.googleColorId,
+      colorId: status === 'provisional' ? PROVISIONAL_GOOGLE_COLOR_ID : shift.googleColorId,
       ...timing,
       extendedProperties: {
         private: {
