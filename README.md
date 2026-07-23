@@ -51,6 +51,27 @@ npm run dev
 
 The same `.env` values and local URLs apply.
 
+## Google Calendar event color mapping
+
+Google Calendar event colors use the `colorId` values from the
+[Calendar API event palette](https://developers.google.com/workspace/calendar/api/v3/reference/colors).
+The names below are the names shown in the Google Calendar UI, as documented by the
+[Apps Script `EventColor` enum](https://developers.google.com/apps-script/reference/calendar/event-color).
+
+| Color name | `colorId` | Hexadecimal code |
+| --- | ---: | --- |
+| Lavender | `1` | `#a4bdfc` |
+| Sage | `2` | `#7ae7bf` |
+| Grape | `3` | `#dbadff` |
+| Flamingo | `4` | `#ff887c` |
+| Banana | `5` | `#fbd75b` |
+| Tangerine | `6` | `#ffb878` |
+| Peacock | `7` | `#46d6db` |
+| Graphite | `8` | `#e1e1e1` |
+| Blueberry | `9` | `#5484ed` |
+| Basil | `10` | `#51b749` |
+| Tomato | `11` | `#dc2127` |
+
 ## Render deployment
 
 The API and web frontend are separate Render services.
