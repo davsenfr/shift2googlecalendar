@@ -127,6 +127,59 @@ describe('CalendarService', () => {
     });
   });
 
+  it('updates the Google event title when an all-day other title is modified', async () => {
+    const googleEvent: calendar_v3.Schema$Event = {
+      id: 'other-event',
+      summary: 'Formation initiale',
+      colorId: '3',
+      start: { date: '2026-07-23' },
+      end: { date: '2026-07-24' },
+      extendedProperties: {
+        private: {
+          shiftToGc: 'v1',
+          shiftDate: '2026-07-23',
+          shiftType: 'all_day_other',
+          shiftStatus: 'confirmed',
+        },
+      },
+    };
+    const updatedGoogleEvent: calendar_v3.Schema$Event = {
+      ...googleEvent,
+      summary: 'Formation avancée',
+    };
+
+    listEvents
+      .mockResolvedValueOnce({ data: { items: [googleEvent] } })
+      .mockResolvedValueOnce({ data: { items: [updatedGoogleEvent] } });
+    updateEvent.mockResolvedValue({ data: updatedGoogleEvent });
+
+    const state = await service.selectShift(
+      '2026-07-23',
+      'all_day_other',
+      'Formation avancée',
+      'confirmed',
+    );
+
+    expect(updateEvent).toHaveBeenCalledWith({
+      calendarId: 'primary',
+      eventId: 'other-event',
+      requestBody: expect.objectContaining({
+        summary: 'Formation avancée',
+        extendedProperties: {
+          private: expect.objectContaining({
+            shiftType: 'all_day_other',
+          }),
+        },
+      }),
+    });
+    expect(insertEvent).not.toHaveBeenCalled();
+    expect(state.event).toMatchObject({
+      id: 'other-event',
+      title: 'Formation avancée',
+      managedByApp: true,
+    });
+  });
+
   it('rejects an event ID that is not present on the requested day', async () => {
     listEvents.mockResolvedValue({ data: { items: [] } });
 
