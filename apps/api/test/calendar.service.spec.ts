@@ -113,4 +113,31 @@ describe('CalendarService', () => {
     expect(updateEvent).not.toHaveBeenCalled();
     expect(insertEvent).not.toHaveBeenCalled();
   });
+
+  it('rejects a Google event whose start and end times are outside the requested shift', async () => {
+    const externalEvent: calendar_v3.Schema$Event = {
+      id: 'external-event',
+      summary: 'Matin',
+      colorId: '2',
+      start: { dateTime: '2026-07-23T05:45:00+02:00' },
+      end: { dateTime: '2026-07-23T14:45:00+02:00' },
+    };
+
+    listEvents.mockResolvedValue({ data: { items: [externalEvent] } });
+
+    await expect(
+      service.selectShift(
+        '2026-07-23',
+        'morning_short',
+        undefined,
+        'confirmed',
+        'external-event',
+      ),
+    ).rejects.toThrow(
+      'L’événement Google Calendar ne correspond plus à l’horaire affiché.',
+    );
+
+    expect(updateEvent).not.toHaveBeenCalled();
+    expect(insertEvent).not.toHaveBeenCalled();
+  });
 });
