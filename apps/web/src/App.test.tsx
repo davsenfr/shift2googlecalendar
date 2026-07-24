@@ -41,6 +41,11 @@ function externalMorning() {
 
 describe('App', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: vi.fn().mockReturnValue({ matches: true }),
+    });
     apiMock.authStatus.mockResolvedValue({
       configured: true,
       connected: true,
@@ -94,5 +99,32 @@ describe('App', () => {
     expect(apiMock.day.mock.calls.map(([date]) => date)).not.toContain(
       addDays(currentDate, 1),
     );
+  });
+
+  it('loads the next day when Google confirms the event', async () => {
+    const user = userEvent.setup();
+    const confirmedMorning = externalMorning();
+    confirmedMorning.event.managedByApp = true;
+    apiMock.select.mockResolvedValue(confirmedMorning);
+    render(<App />);
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: /Conserver Matin/,
+      }),
+    );
+
+    expect(apiMock.select).toHaveBeenCalledWith(
+      currentDate,
+      'morning_short',
+      undefined,
+      'confirmed',
+      'external-event',
+    );
+    await waitFor(() => {
+      expect(apiMock.day.mock.calls.map(([date]) => date)).toContain(
+        addDays(currentDate, 1),
+      );
+    });
   });
 });
