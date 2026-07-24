@@ -95,6 +95,38 @@ describe('CalendarService', () => {
     });
   });
 
+  it('retrieves the Google event title for an all-day other shift', async () => {
+    const googleEvent: calendar_v3.Schema$Event = {
+      id: 'other-event',
+      summary: 'Formation sécurité',
+      colorId: '3',
+      start: { date: '2026-07-23' },
+      end: { date: '2026-07-24' },
+      extendedProperties: {
+        private: {
+          shiftToGc: 'v1',
+          shiftDate: '2026-07-23',
+          shiftType: 'all_day_other',
+          shiftStatus: 'confirmed',
+        },
+      },
+    };
+
+    listEvents.mockResolvedValue({ data: { items: [googleEvent] } });
+
+    const state = await service.getDay('2026-07-23');
+
+    expect(state).toMatchObject({
+      selection: 'all_day_other',
+      status: 'confirmed',
+      event: {
+        id: 'other-event',
+        title: 'Formation sécurité',
+        managedByApp: true,
+      },
+    });
+  });
+
   it('rejects an event ID that is not present on the requested day', async () => {
     listEvents.mockResolvedValue({ data: { items: [] } });
 
