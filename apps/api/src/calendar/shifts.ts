@@ -1,23 +1,9 @@
-export const SHIFT_TYPES = [
-  'morning_short',
-  'morning_long',
-  'all_day_rh',
-  'all_day_rc',
-  'all_day_rf',
-  'all_day_ca',
-  'afternoon',
-  'all_day_other',
-  'all_day_bike',
-] as const;
-export type ShiftType = (typeof SHIFT_TYPES)[number];
-
 export const SHIFT_STATUSES = ['provisional', 'confirmed'] as const;
 export type ShiftStatus = (typeof SHIFT_STATUSES)[number];
 
-export type ShiftDefinition = {
-  type: ShiftType;
+type ShiftProperties = {
   title: string;
-  titleMatch: RegExp;
+  titleMatch?: RegExp;
   start?: string;
   end?: string;
   allDay?: boolean;
@@ -26,69 +12,68 @@ export type ShiftDefinition = {
   titlePrefix?: string;
 };
 
-export const SHIFTS: Record<ShiftType, ShiftDefinition> = {
+type DefinedShift<Type extends string> = Omit<ShiftProperties, 'titleMatch'> & {
+  type: Type;
+  titleMatch: RegExp;
+};
+
+type DefinedShifts<Definitions extends Record<string, ShiftProperties>> = {
+  [Type in keyof Definitions]: DefinedShift<Extract<Type, string>>;
+};
+
+const escapeRegExp = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+
+const defineShifts = <const Definitions extends Record<string, ShiftProperties>>(
+  definitions: Definitions,
+): DefinedShifts<Definitions> =>
+  Object.fromEntries(
+    Object.entries(definitions).map(([type, properties]) => [
+      type,
+      {
+        titleMatch: new RegExp(`^${escapeRegExp(properties.title)}$`, 'iu'),
+        ...properties,
+        type,
+      },
+    ]),
+  ) as DefinedShifts<Definitions>;
+
+const dayOff = (title: string): ShiftProperties => ({
+  title,
+  allDay: true,
+  googleColorId: '11',
+});
+
+export const SHIFTS = defineShifts({
   morning_short: {
-    type: 'morning_short',
     title: 'Matin',
-    titleMatch: /^Matin$/iu,
     start: '06:45',
     end: '13:45',
     googleColorId: '2',
   },
   morning_long: {
-    type: 'morning_long',
     title: 'Matin',
-    titleMatch: /^Matin$/iu,
     start: '06:45',
     end: '14:45',
     googleColorId: '10',
   },
-  all_day_rh: {
-    type: 'all_day_rh',
-    title: 'RH',
-    titleMatch: /^RH$/iu,
-    allDay: true,
-    googleColorId: '11',
-  },
-  all_day_rc: {
-    type: 'all_day_rc',
-    title: 'RC',
-    titleMatch: /^RC$/iu,
-    allDay: true,
-    googleColorId: '11',
-  },
-  all_day_rf: {
-    type: 'all_day_rf',
-    title: 'RF',
-    titleMatch: /^RF$/iu,
-    allDay: true,
-    googleColorId: '11',
-  },
-  all_day_ca: {
-    type: 'all_day_ca',
-    title: 'CA',
-    titleMatch: /^CA$/iu,
-    allDay: true,
-    googleColorId: '11',
-  },
+  all_day_rh: dayOff('RH'),
+  all_day_rc: dayOff('RC'),
+  all_day_rf: dayOff('RF'),
+  all_day_ca: dayOff('CA'),
   afternoon: {
-    type: 'afternoon',
     title: 'Après midi',
-    titleMatch: /^Après midi$/iu,
     start: '13:30',
     end: '21:30',
     googleColorId: '7',
   },
   all_day_other: {
-    type: 'all_day_other',
     title: 'Autres',
-    titleMatch: /^Autres$/iu,
     allDay: true,
     googleColorId: '3',
     editableTitle: true,
   },
   all_day_bike: {
-    type: 'all_day_bike',
     title: 'Vélo',
     titleMatch: /^🚲(?:\s|$)/u,
     allDay: true,
@@ -96,4 +81,9 @@ export const SHIFTS: Record<ShiftType, ShiftDefinition> = {
     editableTitle: true,
     titlePrefix: '🚲',
   },
-};
+});
+
+export type ShiftType = Extract<keyof typeof SHIFTS, string>;
+export type ShiftDefinition = (typeof SHIFTS)[ShiftType];
+
+export const SHIFT_TYPES = Object.keys(SHIFTS) as ShiftType[];
