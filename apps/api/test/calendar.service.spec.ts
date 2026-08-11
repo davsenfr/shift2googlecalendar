@@ -95,6 +95,52 @@ describe('CalendarService', () => {
     });
   });
 
+  it('creates a confirmed afternoon shift with the Google lavender color', async () => {
+    const createdEvent: calendar_v3.Schema$Event = {
+      id: 'afternoon-event',
+      summary: 'Après midi',
+      colorId: '1',
+      start: { dateTime: '2026-07-23T13:30:00+02:00' },
+      end: { dateTime: '2026-07-23T21:30:00+02:00' },
+      extendedProperties: {
+        private: {
+          shiftToGc: 'v1',
+          shiftDate: '2026-07-23',
+          shiftType: 'afternoon',
+          shiftStatus: 'confirmed',
+        },
+      },
+    };
+
+    listEvents
+      .mockResolvedValueOnce({ data: { items: [] } })
+      .mockResolvedValueOnce({ data: { items: [createdEvent] } });
+    insertEvent.mockResolvedValue({ data: createdEvent });
+
+    const state = await service.selectShift(
+      '2026-07-23',
+      'afternoon',
+      undefined,
+      'confirmed',
+    );
+
+    expect(insertEvent).toHaveBeenCalledWith({
+      calendarId: 'primary',
+      requestBody: expect.objectContaining({
+        colorId: '1',
+        summary: 'Après midi',
+      }),
+    });
+    expect(state).toMatchObject({
+      selection: 'afternoon',
+      status: 'confirmed',
+      event: {
+        id: 'afternoon-event',
+        managedByApp: true,
+      },
+    });
+  });
+
   it('retrieves the Google event title for an all-day other shift', async () => {
     const googleEvent: calendar_v3.Schema$Event = {
       id: 'other-event',
