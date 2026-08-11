@@ -77,7 +77,7 @@ export const SHIFTS: Record<ShiftType, ShiftDefinition> = {
     titleMatch: /^Après midi$/iu,
     start: '13:30',
     end: '21:30',
-    googleColorId: '7',
+    googleColorId: '1',
   },
   all_day_other: {
     type: 'all_day_other',
