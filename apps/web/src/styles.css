@@ -87,7 +87,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .date-heading span.active-event.all_day_rc,
 .date-heading span.active-event.all_day_rf,
 .date-heading span.active-event.all_day_ca { --active-event-color: #d93025; }
-.date-heading span.active-event.afternoon { --active-event-color: #039be5; }
+.date-heading span.active-event.afternoon { --active-event-color: #7986cb; }
 .date-heading span.active-event.all_day_other { --active-event-color: #8e24aa; }
 .date-heading span.active-event.provisional {
   --active-event-color: #929892;
@@ -172,7 +172,7 @@ button { -webkit-tap-highlight-color: transparent; }
   --shift-color: #fffdf5;
 }
 .shift-card.afternoon {
-  --shift-background: #039be5;
+  --shift-background: #7986cb;
   --shift-color: #fffdf5;
 }
 .shift-card.all_day_other {
