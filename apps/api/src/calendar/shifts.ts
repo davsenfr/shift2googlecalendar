@@ -30,7 +30,7 @@ export const SHIFTS: Record<ShiftType, ShiftDefinition> = {
   morning_short: {
     type: 'morning_short',
     title: 'Matin',
-    titleMatch: /^Matin$/iu,
+    titleMatch: /^Matin.*/iu,
     start: '06:45',
     end: '13:45',
     googleColorId: '2',
@@ -38,7 +38,7 @@ export const SHIFTS: Record<ShiftType, ShiftDefinition> = {
   morning_long: {
     type: 'morning_long',
     title: 'Matin',
-    titleMatch: /^Matin$/iu,
+    titleMatch: /^Matin.*/iu,
     start: '06:45',
     end: '14:45',
     googleColorId: '10',
@@ -74,7 +74,7 @@ export const SHIFTS: Record<ShiftType, ShiftDefinition> = {
   afternoon: {
     type: 'afternoon',
     title: 'Après midi',
-    titleMatch: /^Apr[eè]s[\s-]midi$/iu,
+    titleMatch: /^Apr[eè]s[\s-]midi.*/iu,
     start: '13:30',
     end: '21:30',
     googleColorId: '1',
@@ -82,7 +82,7 @@ export const SHIFTS: Record<ShiftType, ShiftDefinition> = {
   all_day_other: {
     type: 'all_day_other',
     title: 'Autres',
-    titleMatch: /^Autres$/iu,
+    titleMatch: /^Autres.*/iu,
     allDay: true,
     googleColorId: '3',
     editableTitle: true,
