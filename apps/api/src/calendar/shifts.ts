@@ -74,7 +74,7 @@ export const SHIFTS: Record<ShiftType, ShiftDefinition> = {
   afternoon: {
     type: 'afternoon',
     title: 'Après midi',
-    titleMatch: /^Après midi$/iu,
+    titleMatch: /^Apr[eè]s[\s-]midi$/iu,
     start: '13:30',
     end: '21:30',
     googleColorId: '1',
