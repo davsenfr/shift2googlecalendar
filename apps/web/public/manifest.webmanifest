@@ -6,5 +6,12 @@
   "background_color": "#f4f1e8",
   "theme_color": "#101813",
   "lang": "fr",
-  "icons": []
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
 }
