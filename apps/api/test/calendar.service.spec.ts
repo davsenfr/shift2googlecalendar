@@ -14,6 +14,7 @@ describe('CalendarService', () => {
   const listEvents = vi.fn();
   const updateEvent = vi.fn();
   const insertEvent = vi.fn();
+  const handleAuthError = vi.fn();
   let service: CalendarService;
 
   beforeEach(() => {
@@ -30,9 +31,24 @@ describe('CalendarService', () => {
     } as unknown as ConfigService;
     const googleAuth = {
       getAuthorizedClient: vi.fn().mockResolvedValue({}),
+      handleAuthError,
     } as unknown as GoogleAuthService;
 
     service = new CalendarService(config, googleAuth);
+  });
+
+  it('delegates a late Google token refresh failure to the auth service', async () => {
+    const invalidGrant = {
+      cause: { message: 'invalid_grant' },
+      code: 400,
+    };
+    const unauthorized = new Error('Reconnectez Google Calendar.');
+    listEvents.mockRejectedValue(invalidGrant);
+    handleAuthError.mockRejectedValue(unauthorized);
+
+    await expect(service.getDay('2026-07-23')).rejects.toBe(unauthorized);
+
+    expect(handleAuthError).toHaveBeenCalledWith(invalidGrant);
   });
 
   it('updates and adopts the exact external Google event', async () => {

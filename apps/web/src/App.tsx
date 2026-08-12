@@ -1,5 +1,13 @@
 import { FormEvent, PointerEvent, useCallback, useEffect, useRef, useState } from 'react';
-import { api, API_BASE, AuthStatus, DayState, ShiftStatus, ShiftType } from './api';
+import {
+  api,
+  API_BASE,
+  AuthStatus,
+  DayState,
+  isUnauthorizedError,
+  ShiftStatus,
+  ShiftType,
+} from './api';
 import { addDays, formatDateTitle, relativeDate, today } from './date';
 
 const SHIFT_COPY: Record<ShiftType, { name: string; time: string; note: string }> = {
@@ -44,6 +52,14 @@ export default function App() {
       .catch((reason: Error) => setError(reason.message));
   }, []);
 
+  const handleRequestError = useCallback((reason: unknown) => {
+    if (isUnauthorizedError(reason)) {
+      setAuth((current) => current ? { ...current, connected: false } : current);
+      setDay(null);
+    }
+    setError(reason instanceof Error ? reason.message : 'Impossible de joindre Google Calendar.');
+  }, []);
+
   const refresh = useCallback(async (quiet = false, signal?: AbortSignal) => {
     if (!auth?.connected) return;
     if (!quiet) setLoading(true);
@@ -52,11 +68,11 @@ export default function App() {
       setDay(state);
       setError(null);
     } catch (reason) {
-      if ((reason as Error).name !== 'AbortError') setError((reason as Error).message);
+      if ((reason as Error).name !== 'AbortError') handleRequestError(reason);
     } finally {
       if (!quiet) setLoading(false);
     }
-  }, [auth?.connected, date]);
+  }, [auth?.connected, date, handleRequestError]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -130,7 +146,7 @@ export default function App() {
       await api.select(date, shift, undefined, status);
       await transitionToDay(1);
     } catch (reason) {
-      setError((reason as Error).message);
+      handleRequestError(reason);
     } finally {
       setSaving(null);
     }
@@ -152,7 +168,7 @@ export default function App() {
         await transitionToDay(1);
       }
     } catch (reason) {
-      setError((reason as Error).message);
+      handleRequestError(reason);
     } finally {
       setSaving(null);
     }
@@ -178,7 +194,7 @@ export default function App() {
         await transitionToDay(1);
       }
     } catch (reason) {
-      setError((reason as Error).message);
+      handleRequestError(reason);
     } finally {
       setSaving(null);
     }
@@ -221,13 +237,14 @@ export default function App() {
         !state.event?.managedByApp
       ) {
         setDay(state);
-        throw new Error(
-          'Google Calendar n’a pas confirmé la modification de cet horaire.',
+        handleRequestError(
+          new Error('Google Calendar n’a pas confirmé la modification de cet horaire.'),
         );
+        return;
       }
       await transitionToDay(1);
     } catch (reason) {
-      setError((reason as Error).message);
+      handleRequestError(reason);
     } finally {
       setSaving(null);
     }
@@ -268,7 +285,7 @@ export default function App() {
         <p className="eyebrow">Mes horaires</p>
         <h1>Un geste.<br />Votre agenda est à jour.</h1>
         <p className="welcome-copy">
-          Connectez l’agenda Google dans lequel vous souhaitez enregistrer vos horaires.
+          {error ?? 'Connectez l’agenda Google dans lequel vous souhaitez enregistrer vos horaires.'}
         </p>
         <a className="connect-button" href={`${API_BASE}/auth/google`}>Connecter Google Calendar</a>
         <p className="privacy-note">L’accès à Google reste côté serveur.</p>

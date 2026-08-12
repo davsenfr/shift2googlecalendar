@@ -15,6 +15,8 @@ const { apiMock } = vi.hoisted(() => ({
 vi.mock('./api', () => ({
   API_BASE: '/api',
   api: apiMock,
+  isUnauthorizedError: (error: unknown) =>
+    typeof error === 'object' && error !== null && 'status' in error && error.status === 401,
 }));
 
 const currentDate = today();
@@ -71,6 +73,21 @@ describe('App', () => {
     expect(badge).toHaveTextContent(/^Matin$/);
     expect(relativeDay).not.toHaveClass('active-event');
     expect(relativeDay.parentElement).toBe(badge.parentElement);
+  });
+
+  it('offers reconnection when the saved Google grant has expired', async () => {
+    const authError = Object.assign(
+      new Error('La connexion Google Calendar a expiré. Reconnectez Google Calendar.'),
+      { status: 401 },
+    );
+    apiMock.day.mockRejectedValue(authError);
+
+    render(<App />);
+
+    expect(await screen.findByText(authError.message)).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'Connecter Google Calendar' }),
+    ).toHaveAttribute('href', '/api/auth/google');
   });
 
   it('stays on the current day when Google does not confirm the update', async () => {
