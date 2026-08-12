@@ -237,9 +237,10 @@ export default function App() {
         !state.event?.managedByApp
       ) {
         setDay(state);
-        throw new Error(
-          'Google Calendar n’a pas confirmé la modification de cet horaire.',
+        handleRequestError(
+          new Error('Google Calendar n’a pas confirmé la modification de cet horaire.'),
         );
+        return;
       }
       await transitionToDay(1);
     } catch (reason) {
