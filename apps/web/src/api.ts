@@ -26,6 +26,13 @@ export type DayState = {
   syncedAt: string;
 };
 
+export type CalendarStatistics = {
+  since: string;
+  until: string;
+  counts: Record<ShiftType, number>;
+  bikeKilometers: number;
+};
+
 type CalendarEventState = {
   id: string | null;
   title: string;
@@ -67,6 +74,11 @@ export const api = {
   authStatus: () => request<AuthStatus>('/auth/status'),
   day: (date: string, signal?: AbortSignal) =>
     request<DayState>(`/calendar/days/${date}`, { signal }),
+  statistics: (since?: string, signal?: AbortSignal) =>
+    request<CalendarStatistics>(
+      `/calendar/statistics${since ? `?since=${encodeURIComponent(since)}` : ''}`,
+      { signal },
+    ),
   select: (
     date: string,
     shift: ShiftType,
