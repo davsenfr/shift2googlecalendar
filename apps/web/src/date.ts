@@ -10,12 +10,22 @@ const titleFormatter = new Intl.DateTimeFormat('fr-FR', {
   month: 'long',
 });
 
+const shortDateFormatter = new Intl.DateTimeFormat('fr-FR', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+});
+
 function localNoon(date: string): Date {
   return new Date(`${date}T12:00:00`);
 }
 
 export function today(): string {
   return isoFormatter.format(new Date());
+}
+
+export function firstDayOfCurrentYear(): string {
+  return `${new Date().getFullYear()}-01-01`;
 }
 
 export function addDays(date: string, amount: number): string {
@@ -26,6 +36,10 @@ export function addDays(date: string, amount: number): string {
 
 export function formatDateTitle(date: string): string {
   return titleFormatter.format(localNoon(date));
+}
+
+export function formatShortDate(date: string): string {
+  return shortDateFormatter.format(localNoon(date));
 }
 
 export function relativeDate(date: string): string | null {
