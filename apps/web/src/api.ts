@@ -26,6 +26,13 @@ export type DayState = {
   syncedAt: string;
 };
 
+export type CalendarStatistics = {
+  since: string;
+  until: string;
+  counts: Record<ShiftType, number>;
+  bikeKilometers: number;
+};
+
 type CalendarEventState = {
   id: string | null;
   title: string;
@@ -38,6 +45,16 @@ type CalendarEventState = {
 
 export const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+export function isUnauthorizedError(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 401;
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE}${path}`;
@@ -48,7 +65,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as { message?: string | string[] } | null;
     const message = Array.isArray(payload?.message) ? payload.message.join(' ') : payload?.message;
-    throw new Error(message || 'Impossible de joindre Google Calendar.');
+    throw new ApiError(message || 'Impossible de joindre Google Calendar.', response.status);
   }
   return response.json() as Promise<T>;
 }
@@ -57,6 +74,11 @@ export const api = {
   authStatus: () => request<AuthStatus>('/auth/status'),
   day: (date: string, signal?: AbortSignal) =>
     request<DayState>(`/calendar/days/${date}`, { signal }),
+  statistics: (since?: string, signal?: AbortSignal) =>
+    request<CalendarStatistics>(
+      `/calendar/statistics${since ? `?since=${encodeURIComponent(since)}` : ''}`,
+      { signal },
+    ),
   select: (
     date: string,
     shift: ShiftType,

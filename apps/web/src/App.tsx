@@ -1,6 +1,15 @@
 import { FormEvent, PointerEvent, useCallback, useEffect, useRef, useState } from 'react';
-import { api, API_BASE, AuthStatus, DayState, ShiftStatus, ShiftType } from './api';
+import {
+  api,
+  API_BASE,
+  AuthStatus,
+  DayState,
+  isUnauthorizedError,
+  ShiftStatus,
+  ShiftType,
+} from './api';
 import { addDays, formatDateTitle, relativeDate, today } from './date';
+import StatisticsPage from './StatisticsPage';
 
 const SHIFT_COPY: Record<ShiftType, { name: string; time: string; note: string }> = {
   morning_short: { name: 'Matin', time: '6h45 — 13h45', note: '' },
@@ -17,12 +26,14 @@ const SHIFT_COPY: Record<ShiftType, { name: string; time: string; note: string }
 type DragStart = { x: number; y: number; pointerId: number } | null;
 type PageTransition = 'idle' | 'leaving' | 'entering';
 type PageDirection = 'forward' | 'backward';
+type AppView = 'schedule' | 'statistics';
 
 const PAGE_EXIT_DURATION_MS = 220;
 const PAGE_ENTER_DURATION_MS = 320;
 
 export default function App() {
   const [auth, setAuth] = useState<AuthStatus | null>(null);
+  const [view, setView] = useState<AppView>('schedule');
   const [date, setDate] = useState(today);
   const [day, setDay] = useState<DayState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,19 +55,27 @@ export default function App() {
       .catch((reason: Error) => setError(reason.message));
   }, []);
 
+  const handleRequestError = useCallback((reason: unknown) => {
+    if (isUnauthorizedError(reason)) {
+      setAuth((current) => current ? { ...current, connected: false } : current);
+      setDay(null);
+    }
+    setError(reason instanceof Error ? reason.message : 'Impossible de joindre Google Calendar.');
+  }, []);
+
   const refresh = useCallback(async (quiet = false, signal?: AbortSignal) => {
-    if (!auth?.connected) return;
+    if (!auth?.connected || view !== 'schedule') return;
     if (!quiet) setLoading(true);
     try {
       const state = await api.day(date, signal);
       setDay(state);
       setError(null);
     } catch (reason) {
-      if ((reason as Error).name !== 'AbortError') setError((reason as Error).message);
+      if ((reason as Error).name !== 'AbortError') handleRequestError(reason);
     } finally {
       if (!quiet) setLoading(false);
     }
-  }, [auth?.connected, date]);
+  }, [auth?.connected, date, view, handleRequestError]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -65,7 +84,7 @@ export default function App() {
   }, [refresh]);
 
   useEffect(() => {
-    if (!auth?.connected) return;
+    if (!auth?.connected || view !== 'schedule') return;
     const interval = window.setInterval(() => {
       if (document.visibilityState === 'visible' && !saving) void refresh(true);
     }, 15_000);
@@ -79,7 +98,7 @@ export default function App() {
       window.removeEventListener('focus', onVisible);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [auth?.connected, refresh, saving]);
+  }, [auth?.connected, refresh, saving, view]);
 
   const transitionToDay = async (amount: number) => {
     if (transitionLock.current) return;
@@ -130,7 +149,7 @@ export default function App() {
       await api.select(date, shift, undefined, status);
       await transitionToDay(1);
     } catch (reason) {
-      setError((reason as Error).message);
+      handleRequestError(reason);
     } finally {
       setSaving(null);
     }
@@ -152,7 +171,7 @@ export default function App() {
         await transitionToDay(1);
       }
     } catch (reason) {
-      setError((reason as Error).message);
+      handleRequestError(reason);
     } finally {
       setSaving(null);
     }
@@ -178,7 +197,7 @@ export default function App() {
         await transitionToDay(1);
       }
     } catch (reason) {
-      setError((reason as Error).message);
+      handleRequestError(reason);
     } finally {
       setSaving(null);
     }
@@ -221,13 +240,14 @@ export default function App() {
         !state.event?.managedByApp
       ) {
         setDay(state);
-        throw new Error(
-          'Google Calendar n’a pas confirmé la modification de cet horaire.',
+        handleRequestError(
+          new Error('Google Calendar n’a pas confirmé la modification de cet horaire.'),
         );
+        return;
       }
       await transitionToDay(1);
     } catch (reason) {
-      setError((reason as Error).message);
+      handleRequestError(reason);
     } finally {
       setSaving(null);
     }
@@ -268,7 +288,7 @@ export default function App() {
         <p className="eyebrow">Mes horaires</p>
         <h1>Un geste.<br />Votre agenda est à jour.</h1>
         <p className="welcome-copy">
-          Connectez l’agenda Google dans lequel vous souhaitez enregistrer vos horaires.
+          {error ?? 'Connectez l’agenda Google dans lequel vous souhaitez enregistrer vos horaires.'}
         </p>
         <a className="connect-button" href={`${API_BASE}/auth/google`}>Connecter Google Calendar</a>
         <p className="privacy-note">L’accès à Google reste côté serveur.</p>
@@ -284,12 +304,14 @@ export default function App() {
       : SHIFT_COPY[activeHeadingShift].name
     : null;
   return (
-    <main
-      className={`schedule page-${pageTransition} page-${pageDirection}`}
-      onPointerDown={onPointerDown}
-      onPointerUp={onPointerUp}
-      onPointerCancel={() => (dragStart.current = null)}
-    >
+    <div className="connected-app">
+      {view === 'schedule' ? (
+        <main
+          className={`schedule page-${pageTransition} page-${pageDirection}`}
+          onPointerDown={onPointerDown}
+          onPointerUp={onPointerUp}
+          onPointerCancel={() => (dragStart.current = null)}
+        >
       <header className="title-bar">
         <button className="arrow" onClick={() => moveWithTransition(-1)} aria-label="Jour précédent">‹</button>
         <div className="date-heading" aria-live="polite">
@@ -406,8 +428,33 @@ export default function App() {
         <aside className="notice warning" role="status">Plusieurs horaires correspondants existent ce jour-là.</aside>
       )}
       {error && <aside className="notice error" role="alert">{error}</aside>}
-      <p className="swipe-hint" aria-hidden="true">Glissez pour changer de jour</p>
-    </main>
+          <p className="swipe-hint" aria-hidden="true">Glissez pour changer de jour</p>
+        </main>
+      ) : (
+        <StatisticsPage />
+      )}
+
+      <nav className="view-menu" aria-label="Navigation principale">
+        <button
+          type="button"
+          className={view === 'schedule' ? 'active' : ''}
+          aria-current={view === 'schedule' ? 'page' : undefined}
+          onClick={() => setView('schedule')}
+        >
+          <span aria-hidden="true">&#9638;</span>
+          Horaires
+        </button>
+        <button
+          type="button"
+          className={view === 'statistics' ? 'active' : ''}
+          aria-current={view === 'statistics' ? 'page' : undefined}
+          onClick={() => setView('statistics')}
+        >
+          <span aria-hidden="true">&#9646;&#9644;&#9642;</span>
+          Statistiques
+        </button>
+      </nav>
+    </div>
   );
 }
 

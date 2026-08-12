@@ -20,6 +20,13 @@ export type DayState = {
   syncedAt: string;
 };
 
+export type CalendarStatistics = {
+  since: string;
+  until: string;
+  counts: Record<ShiftType, number>;
+  bikeKilometers: number;
+};
+
 type CalendarEventState = {
   id: string | null;
   title: string;
@@ -48,6 +55,38 @@ export class CalendarService {
     const calendar = await this.getCalendarClient();
     const events = await this.listEvents(calendar, day);
     return this.toDayState(date, events);
+  }
+
+  async getStatistics(since?: string): Promise<CalendarStatistics> {
+    const today = DateTime.now().setZone(this.timeZone).startOf('day');
+    const firstDay = since ? this.parseDate(since) : today.startOf('year');
+    if (firstDay > today) {
+      throw new BadRequestException('La date de début ne peut pas être dans le futur.');
+    }
+
+    const calendar = await this.getCalendarClient();
+    const events = await this.listEventsBetween(calendar, firstDay, today.plus({ days: 1 }));
+    const counts = Object.fromEntries(
+      SHIFT_TYPES.map((shiftType) => [shiftType, 0]),
+    ) as Record<ShiftType, number>;
+    let bikeKilometers = 0;
+
+    for (const event of events) {
+      const shiftType = this.matchShift(event);
+      if (!shiftType) continue;
+
+      counts[shiftType] += 1;
+      if (shiftType === 'all_day_bike') {
+        bikeKilometers += this.parseBikeKilometers(event.summary ?? '');
+      }
+    }
+
+    return {
+      since: firstDay.toISODate() as string,
+      until: today.toISODate() as string,
+      counts,
+      bikeKilometers: Math.round(bikeKilometers * 100) / 100,
+    };
   }
 
   async selectShift(
@@ -85,16 +124,21 @@ export class CalendarService {
     const eventToUpdate = requestedEvent ?? managedEvent ?? matchingUnmanagedEvent;
 
     if (eventToUpdate?.id) {
-      await calendar.events.update({
-        calendarId: this.calendarId,
-        eventId: eventToUpdate.id,
-        requestBody: resource,
-      });
+      const eventId = eventToUpdate.id;
+      await this.executeGoogleRequest(() =>
+        calendar.events.update({
+          calendarId: this.calendarId,
+          eventId,
+          requestBody: resource,
+        }),
+      );
     } else {
-      await calendar.events.insert({
-        calendarId: this.calendarId,
-        requestBody: resource,
-      });
+      await this.executeGoogleRequest(() =>
+        calendar.events.insert({
+          calendarId: this.calendarId,
+          requestBody: resource,
+        }),
+      );
     }
 
     return this.getDay(date);
@@ -111,15 +155,50 @@ export class CalendarService {
     calendar: calendar_v3.Calendar,
     day: DateTime,
   ): Promise<calendar_v3.Schema$Event[]> {
-    const response = await calendar.events.list({
-      calendarId: this.calendarId,
-      timeMin: day.startOf('day').toUTC().toISO() ?? undefined,
-      timeMax: day.plus({ days: 1 }).startOf('day').toUTC().toISO() ?? undefined,
-      singleEvents: true,
-      orderBy: 'startTime',
-      maxResults: 100,
-    });
+    const response = await this.executeGoogleRequest(() =>
+      calendar.events.list({
+        calendarId: this.calendarId,
+        timeMin: day.startOf('day').toUTC().toISO() ?? undefined,
+        timeMax: day.plus({ days: 1 }).startOf('day').toUTC().toISO() ?? undefined,
+        singleEvents: true,
+        orderBy: 'startTime',
+        maxResults: 100,
+      }),
+    );
     return response.data.items ?? [];
+  }
+
+  private async listEventsBetween(
+    calendar: calendar_v3.Calendar,
+    firstDay: DateTime,
+    endExclusive: DateTime,
+  ): Promise<calendar_v3.Schema$Event[]> {
+    const events: calendar_v3.Schema$Event[] = [];
+    let pageToken: string | undefined;
+
+    do {
+      const response = await calendar.events.list({
+        calendarId: this.calendarId,
+        timeMin: firstDay.toUTC().toISO() ?? undefined,
+        timeMax: endExclusive.toUTC().toISO() ?? undefined,
+        singleEvents: true,
+        orderBy: 'startTime',
+        maxResults: 2500,
+        ...(pageToken ? { pageToken } : {}),
+      });
+      events.push(...(response.data.items ?? []));
+      pageToken = response.data.nextPageToken ?? undefined;
+    } while (pageToken);
+
+    return events;
+  }
+
+  private async executeGoogleRequest<T>(request: () => Promise<T>): Promise<T> {
+    try {
+      return await request();
+    } catch (error) {
+      return this.googleAuth.handleAuthError(error);
+    }
   }
 
   private toDayState(date: string, events: calendar_v3.Schema$Event[]): DayState {
@@ -282,6 +361,14 @@ export class CalendarService {
 
   private stripProvisionalTitlePrefix(title: string): string {
     return title.trim().replace(/^\u2753\s*/u, '').trim();
+  }
+
+  private parseBikeKilometers(title: string): number {
+    const distance = title.match(/(\d[\d\s\u00a0\u202f]*(?:[.,]\d+)?)\s*km\b/iu)?.[1];
+    if (!distance) return 0;
+
+    const value = Number(distance.replace(/[\s\u00a0\u202f]/gu, '').replace(',', '.'));
+    return Number.isFinite(value) && value > 0 ? value : 0;
   }
 
   private parseDate(date: string): DateTime {
