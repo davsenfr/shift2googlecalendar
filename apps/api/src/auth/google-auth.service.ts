@@ -73,7 +73,29 @@ export class GoogleAuthService {
     client.on('tokens', (updatedTokens) => {
       void this.tokenStore.write(updatedTokens);
     });
+
+    try {
+      await client.getAccessToken();
+    } catch (error) {
+      return this.handleAuthError(error);
+    }
+
     return client;
+  }
+
+  async handleAuthError(error: unknown): Promise<never> {
+    if (this.isCalendarApiDisabled(error)) {
+      throw new ServiceUnavailableException(
+        'L’API Google Calendar est désactivée dans le projet Google Cloud. Activez-la puis réessayez dans quelques minutes.',
+      );
+    }
+
+    if (!this.isInvalidGrant(error)) throw error;
+
+    await this.tokenStore.clear();
+    throw new UnauthorizedException(
+      'La connexion Google Calendar a expiré. Reconnectez Google Calendar.',
+    );
   }
 
   async disconnect(): Promise<void> {
@@ -108,5 +130,42 @@ export class GoogleAuthService {
     for (const [state, expiration] of this.pendingStates) {
       if (expiration < now) this.pendingStates.delete(state);
     }
+  }
+
+  private isInvalidGrant(error: unknown): boolean {
+    if (!error || typeof error !== 'object') return false;
+
+    const oauthError = error as {
+      code?: string;
+      cause?: { message?: string };
+      message?: string;
+      response?: { data?: { error?: string } };
+    };
+
+    return oauthError.code === 'invalid_grant' ||
+      oauthError.cause?.message === 'invalid_grant' ||
+      oauthError.message === 'invalid_grant' ||
+      oauthError.response?.data?.error === 'invalid_grant';
+  }
+
+  private isCalendarApiDisabled(error: unknown): boolean {
+    if (!error || typeof error !== 'object') return false;
+
+    const googleError = error as {
+      cause?: { errors?: Array<{ reason?: string }> };
+      response?: {
+        data?: {
+          error?: {
+            errors?: Array<{ reason?: string }>;
+          };
+        };
+      };
+    };
+    const reasons = [
+      ...(googleError.cause?.errors ?? []),
+      ...(googleError.response?.data?.error?.errors ?? []),
+    ];
+
+    return reasons.some(({ reason }) => reason === 'accessNotConfigured');
   }
 }

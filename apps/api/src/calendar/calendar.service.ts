@@ -85,16 +85,21 @@ export class CalendarService {
     const eventToUpdate = requestedEvent ?? managedEvent ?? matchingUnmanagedEvent;
 
     if (eventToUpdate?.id) {
-      await calendar.events.update({
-        calendarId: this.calendarId,
-        eventId: eventToUpdate.id,
-        requestBody: resource,
-      });
+      const eventId = eventToUpdate.id;
+      await this.executeGoogleRequest(() =>
+        calendar.events.update({
+          calendarId: this.calendarId,
+          eventId,
+          requestBody: resource,
+        }),
+      );
     } else {
-      await calendar.events.insert({
-        calendarId: this.calendarId,
-        requestBody: resource,
-      });
+      await this.executeGoogleRequest(() =>
+        calendar.events.insert({
+          calendarId: this.calendarId,
+          requestBody: resource,
+        }),
+      );
     }
 
     return this.getDay(date);
@@ -111,15 +116,25 @@ export class CalendarService {
     calendar: calendar_v3.Calendar,
     day: DateTime,
   ): Promise<calendar_v3.Schema$Event[]> {
-    const response = await calendar.events.list({
-      calendarId: this.calendarId,
-      timeMin: day.startOf('day').toUTC().toISO() ?? undefined,
-      timeMax: day.plus({ days: 1 }).startOf('day').toUTC().toISO() ?? undefined,
-      singleEvents: true,
-      orderBy: 'startTime',
-      maxResults: 100,
-    });
+    const response = await this.executeGoogleRequest(() =>
+      calendar.events.list({
+        calendarId: this.calendarId,
+        timeMin: day.startOf('day').toUTC().toISO() ?? undefined,
+        timeMax: day.plus({ days: 1 }).startOf('day').toUTC().toISO() ?? undefined,
+        singleEvents: true,
+        orderBy: 'startTime',
+        maxResults: 100,
+      }),
+    );
     return response.data.items ?? [];
+  }
+
+  private async executeGoogleRequest<T>(request: () => Promise<T>): Promise<T> {
+    try {
+      return await request();
+    } catch (error) {
+      return this.googleAuth.handleAuthError(error);
+    }
   }
 
   private toDayState(date: string, events: calendar_v3.Schema$Event[]): DayState {
