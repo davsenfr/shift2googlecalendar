@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title description">
+  <title id="title">Mes horaires</title>
+  <desc id="description">Calendrier multicolore sur un fond vert sauge clair circulaire</desc>
+
+  <!-- Circular canvas: suitable for Android's round launcher-icon mask. -->
+  <circle cx="256" cy="256" r="256" fill="#c8ddcf"/>
+
+  <!-- Calendar body kept inside the central safe area. -->
+  <rect x="96" y="112" width="320" height="304" rx="56" fill="#f4f1e8"/>
+  <path d="M96 168c0-30.928 25.072-56 56-56h208c30.928 0 56 25.072 56 56v64H96z" fill="#376348"/>
+
+  <!-- Binding rings. -->
+  <rect x="160" y="80" width="40" height="104" rx="20" fill="#f4f1e8"/>
+  <rect x="312" y="80" width="40" height="104" rx="20" fill="#f4f1e8"/>
+
+  <!-- Shift blocks. -->
+  <rect x="136" y="272" width="64" height="48" rx="14" fill="#33b679"/>
+  <rect x="224" y="272" width="64" height="48" rx="14" fill="#d93025"/>
+  <rect x="312" y="272" width="64" height="48" rx="14" fill="#7986cb"/>
+  <rect x="136" y="344" width="64" height="48" rx="14" fill="#8e24aa"/>
+  <rect x="224" y="344" width="152" height="48" rx="14" fill="#f6c026"/>
+</svg>
