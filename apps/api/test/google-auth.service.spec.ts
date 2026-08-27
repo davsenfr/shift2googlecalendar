@@ -2,12 +2,16 @@ import { ServiceUnavailableException, UnauthorizedException } from '@nestjs/comm
 import { ConfigService } from '@nestjs/config';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GoogleAuthService } from '../src/auth/google-auth.service';
+import { OAuthStateStoreService } from '../src/auth/oauth-state-store.service';
 import { TokenStoreService } from '../src/auth/token-store.service';
 
 const { client, oauth2Constructor } = vi.hoisted(() => {
   const oauthClient = {
+    generateAuthUrl: vi.fn(({ state }: { state: string }) => `https://accounts.google.test/?state=${state}`),
     getAccessToken: vi.fn(),
+    getToken: vi.fn(),
     on: vi.fn(),
+    revokeCredentials: vi.fn(),
     setCredentials: vi.fn(),
   };
 
@@ -33,11 +37,18 @@ describe('GoogleAuthService', () => {
     read: vi.fn(),
     write: vi.fn(),
   };
+  const stateStore = {
+    consume: vi.fn(),
+    create: vi.fn(),
+  };
   let service: GoogleAuthService;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     tokenStore.read.mockResolvedValue({ refresh_token: 'refresh-token' });
     tokenStore.clear.mockResolvedValue(undefined);
+    stateStore.consume.mockResolvedValue(true);
+    stateStore.create.mockResolvedValue(undefined);
     client.getAccessToken.mockResolvedValue({ token: 'access-token' });
 
     const config = {
@@ -48,7 +59,25 @@ describe('GoogleAuthService', () => {
     service = new GoogleAuthService(
       config,
       tokenStore as unknown as TokenStoreService,
+      stateStore as unknown as OAuthStateStoreService,
     );
+  });
+
+  it('persists OAuth state before returning the Google authorization URL', async () => {
+    const url = await service.createAuthorizationUrl();
+
+    const state = new URL(url).searchParams.get('state');
+    expect(state).toMatch(/^[a-f0-9]{64}$/);
+    expect(stateStore.create).toHaveBeenCalledWith(state, expect.any(Date));
+  });
+
+  it('rejects a callback whose state was not found or has expired', async () => {
+    stateStore.consume.mockResolvedValue(false);
+
+    await expect(service.handleCallback('code', 'invalid-state')).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+    expect(client.getToken).not.toHaveBeenCalled();
   });
 
   it('validates the credentials before returning the authorized client', async () => {

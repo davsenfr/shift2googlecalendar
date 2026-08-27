@@ -4,9 +4,11 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'node:path';
 import { AuthController } from './auth/auth.controller';
 import { GoogleAuthService } from './auth/google-auth.service';
+import { OAuthStateStoreService } from './auth/oauth-state-store.service';
 import { TokenStoreService } from './auth/token-store.service';
 import { CalendarController } from './calendar/calendar.controller';
 import { CalendarService } from './calendar/calendar.service';
+import { DatabaseService } from './database/database.service';
 
 @Module({
   imports: [
@@ -17,6 +19,12 @@ import { CalendarService } from './calendar/calendar.service';
     }),
   ],
   controllers: [AuthController, CalendarController],
-  providers: [TokenStoreService, GoogleAuthService, CalendarService],
+  providers: [
+    DatabaseService,
+    TokenStoreService,
+    OAuthStateStoreService,
+    GoogleAuthService,
+    CalendarService,
+  ],
 })
 export class AppModule {}
