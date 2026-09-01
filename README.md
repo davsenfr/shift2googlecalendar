@@ -12,7 +12,8 @@ Requirements: Docker Desktop with Docker Compose.
    Copy-Item .env.example .env
    ```
 
-2. Add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` to `.env`.
+2. Add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `DATABASE_URL`, and
+   `DATABASE_URL_UNPOOLED` to `.env`.
 3. In the Google Cloud OAuth web client, authorize this redirect URI:
 
    ```text
@@ -31,6 +32,8 @@ Open `http://localhost:5173`. The services are deliberately exposed on two URLs,
 - API (NestJS): `http://localhost:3001/api`
 
 Vite proxies browser requests from `/api` to the `backend` Compose service. Source folders are mounted into the containers, so Nest and Vite reload when files change. Google OAuth tokens and short-lived OAuth state values are persisted in Neon PostgreSQL.
+
+The API applies pending database migrations before starting in development.
 
 Stop the application with:
 
@@ -148,6 +151,7 @@ The API is ready for Vercel's native NestJS runtime. Its `src/main.ts` entry poi
 
 ```text
 DATABASE_URL=postgresql://...-pooler.../DATABASE?sslmode=require
+DATABASE_URL_UNPOOLED=postgresql://.../DATABASE?sslmode=require
 TOKEN_ENCRYPTION_KEY=<base64-encoded 32-byte key>
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
@@ -157,7 +161,7 @@ GOOGLE_CALENDAR_TIMEZONE=Europe/Paris
 WEB_URL=https://YOUR-WEB-DOMAIN
 ```
 
-Copy `DATABASE_URL` from Neon's **Connect** dialog with connection pooling enabled, or let the Neon Vercel integration create it. Generate `TOKEN_ENCRYPTION_KEY` once and keep the same value across deployments:
+Copy `DATABASE_URL` from Neon's **Connect** dialog with connection pooling enabled, or let the Neon Vercel integration create it. `DATABASE_URL_UNPOOLED` is the direct connection used only by Drizzle migrations; enable that variable in the integration or copy the connection with pooling disabled. Generate `TOKEN_ENCRYPTION_KEY` once and keep the same value across deployments:
 
 ```powershell
 node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('base64'))"
@@ -165,7 +169,16 @@ node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('b
 
 Do not commit either value. Losing or changing `TOKEN_ENCRYPTION_KEY` makes existing credentials unreadable; in that case, delete the `primary` row from `google_oauth_credentials` and reconnect Google Calendar.
 
-On its first database request, the API idempotently creates `google_oauth_credentials` and `google_oauth_states`. The credential JSON is encrypted with AES-256-GCM before it reaches PostgreSQL. OAuth state values are stored only as SHA-256 hashes and consumed once, which makes the callback safe when Vercel routes its two requests to different function instances.
+The Vercel build runs committed Drizzle migrations before building the API. The initial migration adopts existing `google_oauth_credentials` and `google_oauth_states` tables without deleting their data. The credential JSON is encrypted with AES-256-GCM before it reaches PostgreSQL. OAuth state values are stored only as SHA-256 hashes and consumed once, which makes the callback safe when Vercel routes its two requests to different function instances.
+
+After changing `apps/api/src/database/schema.ts`, generate and review a migration, then commit the schema, SQL migration, and Drizzle metadata together:
+
+```bash
+npm run db:generate --workspace=@shift-to-gc/api
+npm run db:check --workspace=@shift-to-gc/api
+```
+
+Apply pending migrations manually with `npm run db:migrate --workspace=@shift-to-gc/api`. Migration commands prefer `DATABASE_URL_UNPOOLED` and fall back to `DATABASE_URL` for local development. For Vercel previews, enable Neon's per-preview database branches so preview migrations never modify the production branch.
 
 `WEB_URL` must be the exact public frontend origin. It is used both for CORS and for the redirect after Google OAuth. For Preview deployments, use a separate Neon branch and a fixed preview domain with its own Google redirect URI; Google's OAuth redirect URI configuration does not accept arbitrary Vercel preview URLs.
 
