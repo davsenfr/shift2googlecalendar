@@ -6,6 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { google } from 'googleapis';
 import { randomBytes } from 'node:crypto';
+import { OAuthStateStoreService } from './oauth-state-store.service';
 import { TokenStoreService } from './token-store.service';
 
 const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
@@ -13,11 +14,10 @@ type GoogleOAuthClient = InstanceType<typeof google.auth.OAuth2>;
 
 @Injectable()
 export class GoogleAuthService {
-  private readonly pendingStates = new Map<string, number>();
-
   constructor(
     private readonly config: ConfigService,
     private readonly tokenStore: TokenStoreService,
+    private readonly stateStore: OAuthStateStoreService,
   ) {}
 
   isConfigured(): boolean {
@@ -35,11 +35,10 @@ export class GoogleAuthService {
     };
   }
 
-  createAuthorizationUrl(): string {
+  async createAuthorizationUrl(): Promise<string> {
     const client = this.createClient();
-    this.removeExpiredStates();
     const state = randomBytes(32).toString('hex');
-    this.pendingStates.set(state, Date.now() + 10 * 60_000);
+    await this.stateStore.create(state, new Date(Date.now() + 10 * 60_000));
 
     return client.generateAuthUrl({
       access_type: 'offline',
@@ -51,9 +50,7 @@ export class GoogleAuthService {
   }
 
   async handleCallback(code: string, state: string): Promise<void> {
-    const expiration = this.pendingStates.get(state);
-    this.pendingStates.delete(state);
-    if (!expiration || expiration < Date.now()) {
+    if (!state || !(await this.stateStore.consume(state))) {
       throw new UnauthorizedException('État OAuth invalide ou expiré.');
     }
 
@@ -123,13 +120,6 @@ export class GoogleAuthService {
       this.config.getOrThrow<string>('GOOGLE_CLIENT_SECRET'),
       this.config.getOrThrow<string>('GOOGLE_REDIRECT_URI'),
     );
-  }
-
-  private removeExpiredStates() {
-    const now = Date.now();
-    for (const [state, expiration] of this.pendingStates) {
-      if (expiration < now) this.pendingStates.delete(state);
-    }
   }
 
   private isInvalidGrant(error: unknown): boolean {

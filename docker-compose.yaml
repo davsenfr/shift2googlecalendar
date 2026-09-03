@@ -14,11 +14,9 @@ services:
       API_PORT: 3001
       WEB_URL: http://localhost:5173
       GOOGLE_REDIRECT_URI: http://localhost:3001/api/auth/google/callback
-      GOOGLE_TOKEN_PATH: /app/.data/google-tokens.json
     volumes:
       - ./apps/api:/app/apps/api
       - api_node_modules:/app/apps/api/node_modules
-      - ./.data:/app/.data
     ports:
       - "3001:3001"
 

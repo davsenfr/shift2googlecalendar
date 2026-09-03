@@ -12,7 +12,8 @@ Requirements: Docker Desktop with Docker Compose.
    Copy-Item .env.example .env
    ```
 
-2. Add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` to `.env`.
+2. Add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `DATABASE_URL`, and
+   `DATABASE_URL_UNPOOLED` to `.env`.
 3. In the Google Cloud OAuth web client, authorize this redirect URI:
 
    ```text
@@ -30,7 +31,9 @@ Open `http://localhost:5173`. The services are deliberately exposed on two URLs,
 - Web (Vite): `http://localhost:5173`
 - API (NestJS): `http://localhost:3001/api`
 
-Vite proxies browser requests from `/api` to the `backend` Compose service. Source folders are mounted into the containers, so Nest and Vite reload when files change. Google OAuth tokens are persisted in the host's `.data` directory.
+Vite proxies browser requests from `/api` to the `backend` Compose service. Source folders are mounted into the containers, so Nest and Vite reload when files change. Google OAuth tokens and short-lived OAuth state values are persisted in Neon PostgreSQL.
+
+The API applies pending database migrations before starting in development.
 
 Stop the application with:
 
@@ -136,29 +139,50 @@ The names below are the names shown in the Google Calendar UI, as documented by 
 | Basil | `10` | `#51b749` |
 | Tomato | `11` | `#dc2127` |
 
-## Render deployment
+## Vercel API deployment with Neon
 
-The API and web frontend are separate Render services.
+The API is ready for Vercel's native NestJS runtime. Its `src/main.ts` entry point is detected automatically, and `apps/api/vercel.json` pins the NestJS framework preset.
 
-### API web service
-
-Use the repository root as the Docker build context and `apps/api/Dockerfile` as the Dockerfile. The final `runtime` stage is selected by default. Render supplies `PORT`; the application already prefers it over `API_PORT`.
-
-Set at least these environment variables:
+1. Import this Git repository as a new Vercel project.
+2. Set **Root Directory** to `apps/api`. Leave the automatically detected install and build commands unchanged.
+3. In **Settings > Environment Variables**, add the production variables below.
+4. Add the final callback URL to the Google Cloud OAuth client's **Authorized redirect URIs**.
+5. Deploy again after saving environment variables.
 
 ```text
+DATABASE_URL=postgresql://...-pooler.../DATABASE?sslmode=require
+DATABASE_URL_UNPOOLED=postgresql://.../DATABASE?sslmode=require
+TOKEN_ENCRYPTION_KEY=<base64-encoded 32-byte key>
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
-GOOGLE_REDIRECT_URI=https://YOUR-API.onrender.com/api/auth/google/callback
+GOOGLE_REDIRECT_URI=https://YOUR-API-DOMAIN/api/auth/google/callback
 GOOGLE_CALENDAR_ID=primary
 GOOGLE_CALENDAR_TIMEZONE=Europe/Paris
-GOOGLE_TOKEN_PATH=...
-WEB_URL=https://YOUR-WEB.onrender.com
+WEB_URL=https://YOUR-WEB-DOMAIN
 ```
 
-`WEB_URL` must be the exact public frontend origin. It is used both for CORS and for the redirect after Google OAuth.
+Copy `DATABASE_URL` from Neon's **Connect** dialog with connection pooling enabled, or let the Neon Vercel integration create it. `DATABASE_URL_UNPOOLED` is the direct connection used only by Drizzle migrations; enable that variable in the integration or copy the connection with pooling disabled. Generate `TOKEN_ENCRYPTION_KEY` once and keep the same value across deployments:
 
-### Web static site
+```powershell
+node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('base64'))"
+```
+
+Do not commit either value. Losing or changing `TOKEN_ENCRYPTION_KEY` makes existing credentials unreadable; in that case, delete the `primary` row from `google_oauth_credentials` and reconnect Google Calendar.
+
+The Vercel build runs committed Drizzle migrations before building the API. The initial migration adopts existing `google_oauth_credentials` and `google_oauth_states` tables without deleting their data. The credential JSON is encrypted with AES-256-GCM before it reaches PostgreSQL. OAuth state values are stored only as SHA-256 hashes and consumed once, which makes the callback safe when Vercel routes its two requests to different function instances.
+
+After changing `apps/api/src/database/schema.ts`, generate and review a migration, then commit the schema, SQL migration, and Drizzle metadata together:
+
+```bash
+npm run db:generate --workspace=@shift-to-gc/api
+npm run db:check --workspace=@shift-to-gc/api
+```
+
+Apply pending migrations manually with `npm run db:migrate --workspace=@shift-to-gc/api`. Migration commands prefer `DATABASE_URL_UNPOOLED` and fall back to `DATABASE_URL` for local development. For Vercel previews, enable Neon's per-preview database branches so preview migrations never modify the production branch.
+
+`WEB_URL` must be the exact public frontend origin. It is used both for CORS and for the redirect after Google OAuth. For Preview deployments, use a separate Neon branch and a fixed preview domain with its own Google redirect URI; Google's OAuth redirect URI configuration does not accept arbitrary Vercel preview URLs.
+
+### Web static deployment
 
 Use these settings:
 
@@ -167,10 +191,10 @@ Build command: npm ci && npm run build --workspace=@shift-to-gc/web
 Publish directory: apps/web/dist
 ```
 
-Set this build-time environment variable, including the API's `/api` prefix:
+Set this build-time environment variable on the frontend host, including the API's `/api` prefix:
 
 ```text
-VITE_API_BASE_URL=https://YOUR-API.onrender.com/api
+VITE_API_BASE_URL=https://YOUR-API-DOMAIN/api
 ```
 
 Vite embeds `VITE_API_BASE_URL` into the static JavaScript bundle at build time. Changing it requires a new web build/deploy.
@@ -184,4 +208,4 @@ npm run build
 npm start
 ```
 
-The OAuth token file contains sensitive data. Keep it outside the public web root on persistent, encrypted storage. The current token store is intended for a single user; a multi-user deployment should use encrypted per-user storage.
+The current token store is intentionally a single-account store. A multi-user deployment should add a user/account key to both the OAuth credential and state models.

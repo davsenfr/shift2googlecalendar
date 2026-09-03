@@ -17,8 +17,8 @@ export class AuthController {
 
   @Get('google')
   @Redirect()
-  connect() {
-    return { url: this.googleAuth.createAuthorizationUrl(), statusCode: 302 };
+  async connect() {
+    return { url: await this.googleAuth.createAuthorizationUrl(), statusCode: 302 };
   }
 
   @Get('google/callback')

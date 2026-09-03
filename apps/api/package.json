@@ -4,13 +4,18 @@
   "private": true,
   "scripts": {
     "build": "nest build",
+    "db:check": "drizzle-kit check",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
     "dev": "nest start --watch --path tsconfig.build.json",
+    "predev": "npm run db:migrate",
     "start": "node dist/main.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
     "@nestjs/common": "^11.1.6",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.1.6",
@@ -18,6 +23,7 @@
     "@nestjs/serve-static": "^5.0.3",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
+    "drizzle-orm": "^0.45.2",
     "googleapis": "^160.0.0",
     "luxon": "^3.7.2",
     "reflect-metadata": "^0.2.2",
@@ -28,6 +34,8 @@
     "@types/express": "^5.0.3",
     "@types/luxon": "^3.7.1",
     "@types/node": "^24.3.0",
+    "dotenv": "^17.4.1",
+    "drizzle-kit": "^0.31.10",
     "typescript": "^5.9.2",
     "vitest": "^4.1.10"
   }
