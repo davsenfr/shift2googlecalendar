@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { calendar_v3, google } from 'googleapis';
+import { calendar, calendar_v3 } from '@googleapis/calendar';
 import { DateTime } from 'luxon';
 import { GoogleAuthService } from '../auth/google-auth.service';
 import { SHIFTS, SHIFT_TYPES, ShiftDefinition, ShiftStatus, ShiftType } from './shifts';
@@ -145,7 +145,7 @@ export class CalendarService {
   }
 
   private async getCalendarClient(): Promise<calendar_v3.Calendar> {
-    return google.calendar({
+    return calendar({
       version: 'v3',
       auth: await this.googleAuth.getAuthorizedClient(),
     });

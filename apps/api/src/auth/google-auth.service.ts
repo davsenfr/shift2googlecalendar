@@ -4,13 +4,13 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { google } from 'googleapis';
+import { OAuth2Client } from 'google-auth-library';
 import { randomBytes } from 'node:crypto';
 import { OAuthStateStoreService } from './oauth-state-store.service';
 import { TokenStoreService } from './token-store.service';
 
 const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
-type GoogleOAuthClient = InstanceType<typeof google.auth.OAuth2>;
+type GoogleOAuthClient = OAuth2Client;
 
 @Injectable()
 export class GoogleAuthService {
@@ -115,7 +115,7 @@ export class GoogleAuthService {
         'Renseignez les variables GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET et GOOGLE_REDIRECT_URI.',
       );
     }
-    return new google.auth.OAuth2(
+    return new OAuth2Client(
       this.config.getOrThrow<string>('GOOGLE_CLIENT_ID'),
       this.config.getOrThrow<string>('GOOGLE_CLIENT_SECRET'),
       this.config.getOrThrow<string>('GOOGLE_REDIRECT_URI'),

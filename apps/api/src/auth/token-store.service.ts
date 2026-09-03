@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Credentials } from 'google-auth-library';
+import type { Credentials } from 'google-auth-library';
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import { DatabaseService } from '../database/database.service';
 

@@ -23,12 +23,8 @@ const { client, oauth2Constructor } = vi.hoisted(() => {
   };
 });
 
-vi.mock('googleapis', () => ({
-  google: {
-    auth: {
-      OAuth2: oauth2Constructor,
-    },
-  },
+vi.mock('google-auth-library', () => ({
+  OAuth2Client: oauth2Constructor,
 }));
 
 describe('GoogleAuthService', () => {

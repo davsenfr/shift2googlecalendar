@@ -1,13 +1,11 @@
 import { ConfigService } from '@nestjs/config';
-import { calendar_v3, google } from 'googleapis';
+import { calendar, calendar_v3 } from '@googleapis/calendar';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GoogleAuthService } from '../src/auth/google-auth.service';
 import { CalendarService } from '../src/calendar/calendar.service';
 
-vi.mock('googleapis', () => ({
-  google: {
-    calendar: vi.fn(),
-  },
+vi.mock('@googleapis/calendar', () => ({
+  calendar: vi.fn(),
 }));
 
 describe('CalendarService', () => {
@@ -22,7 +20,7 @@ describe('CalendarService', () => {
   });
 
   beforeEach(() => {
-    vi.mocked(google.calendar).mockReturnValue({
+    vi.mocked(calendar).mockReturnValue({
       events: {
         insert: insertEvent,
         list: listEvents,
